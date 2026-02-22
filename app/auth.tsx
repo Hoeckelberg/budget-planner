@@ -26,10 +26,33 @@ export default function AuthScreen() {
     const [password, setPassword] = useState('');
     const [fullName, setFullName] = useState('');
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const validateEmail = (email: string) => {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+    };
 
     const handleAuth = async () => {
+        setError(null);
+
+        // Validation
         if (!email || !password) {
-            Alert.alert('Fehler', 'Bitte fülle alle Felder aus');
+            setError('Bitte fülle alle Felder aus');
+            return;
+        }
+
+        if (!validateEmail(email)) {
+            setError('Bitte gib eine gültige E-Mail-Adresse ein');
+            return;
+        }
+
+        if (password.length < 6) {
+            setError('Passwort muss mindestens 6 Zeichen lang sein');
+            return;
+        }
+
+        if (isSignUp && !fullName) {
+            setError('Bitte gib deinen Namen ein');
             return;
         }
 
@@ -37,23 +60,39 @@ export default function AuthScreen() {
         try {
             if (isSignUp) {
                 await signUp(email, password, fullName);
-                Alert.alert('Erfolg', 'Account erstellt! Bitte bestätige deine E-Mail.');
+                Alert.alert('Erfolg! 🎉', 'Account wurde erstellt. Du kannst dich jetzt anmelden.');
             } else {
                 await signIn(email, password);
             }
         } catch (error: any) {
-            Alert.alert('Fehler', error.message || 'Ein Fehler ist aufgetreten');
+            console.error('Auth error:', error);
+
+            // Better error messages
+            let errorMessage = 'Ein Fehler ist aufgetreten';
+
+            if (error.message?.includes('Invalid login credentials')) {
+                errorMessage = 'E-Mail oder Passwort ist falsch';
+            } else if (error.message?.includes('User already registered')) {
+                errorMessage = 'Diese E-Mail ist bereits registriert';
+            } else if (error.message?.includes('Email not confirmed')) {
+                errorMessage = 'Bitte bestätige zuerst deine E-Mail';
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+
+            setError(errorMessage);
         } finally {
             setLoading(false);
         }
     };
 
     const handleGoogleSignIn = async () => {
+        setError(null);
         setLoading(true);
         try {
             await signInWithGoogle();
         } catch (error: any) {
-            Alert.alert('Fehler', error.message || 'Google Sign-In fehlgeschlagen');
+            setError(error.message || 'Google Sign-In fehlgeschlagen');
         } finally {
             setLoading(false);
         }
@@ -163,7 +202,23 @@ export default function AuthScreen() {
                                 secureTextEntry
                                 autoCapitalize="none"
                             />
+                            {isSignUp && (
+                                <Text style={[Typography.caption2, { color: colors.textTertiary }]}>
+                                    Mindestens 6 Zeichen
+                                </Text>
+                            )}
                         </View>
+
+                        {/* Error Message */}
+                        {error && (
+                            <Animated.View
+                                entering={FadeInDown.springify()}
+                                style={styles.errorContainer}
+                            >
+                                <Text style={styles.errorIcon}>⚠️</Text>
+                                <Text style={styles.errorText}>{error}</Text>
+                            </Animated.View>
+                        )}
 
                         {/* Submit Button */}
                         <Pressable
@@ -276,5 +331,24 @@ const styles = StyleSheet.create({
         gap: Spacing.sm,
         paddingVertical: Spacing.md,
         borderRadius: BorderRadius.md,
+    },
+    errorContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.sm,
+        backgroundColor: 'rgba(255, 59, 48, 0.1)',
+        borderWidth: 1,
+        borderColor: 'rgba(255, 59, 48, 0.3)',
+        borderRadius: BorderRadius.md,
+        padding: Spacing.md,
+    },
+    errorIcon: {
+        fontSize: 20,
+    },
+    errorText: {
+        flex: 1,
+        fontSize: 15,
+        color: '#FF3B30',
+        fontWeight: '500',
     },
 });

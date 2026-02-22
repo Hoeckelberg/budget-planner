@@ -47,29 +47,30 @@ export const CategoryColors = {
 
 export default {
   light: {
-    // Backgrounds
-    background: '#F2F2F7',
-    backgroundSecondary: '#FFFFFF',
-    backgroundTertiary: '#E5E5EA',
+    // Force Dark Mode even in Light Mode
+    background: '#000000', // Deep Black
+    backgroundSecondary: '#1C1C1E', // iOS System Gray 6
+    backgroundTertiary: '#2C2C2E',
 
     // Text
-    text: '#000000',
-    textSecondary: 'rgba(0,0,0,0.6)',
-    textTertiary: 'rgba(0,0,0,0.4)',
+    text: '#FFFFFF',
+    textSecondary: 'rgba(255,255,255,0.6)',
+    textTertiary: 'rgba(255,255,255,0.4)',
 
-    // Glass Effect
-    glass: 'rgba(255,255,255,0.8)',
-    glassBorder: 'rgba(255,255,255,0.3)',
+    // Glass Effect (VisionOS Style)
+    glass: 'rgba(28, 28, 30, 0.6)', // Darker, more opaque glass
+    glassBorder: 'rgba(255,255,255,0.1)',
+    glassHighlight: 'rgba(255,255,255,0.15)',
 
     // UI Elements
     tint: AppleBlue,
     tabIconDefault: '#8E8E93',
     tabIconSelected: AppleBlue,
-    separator: 'rgba(0,0,0,0.1)',
+    separator: 'rgba(255,255,255,0.1)',
 
     // Cards
-    cardBackground: '#FFFFFF',
-    cardShadow: 'rgba(0,0,0,0.1)',
+    cardBackground: '#1C1C1E',
+    cardShadow: 'rgba(0,0,0,0.3)',
 
     // Semantic
     success: AppleGreen,
@@ -78,8 +79,8 @@ export default {
   },
   dark: {
     // Backgrounds
-    background: '#0D0D0D',
-    backgroundSecondary: '#1C1C1E',
+    background: '#000000', // Deep Black
+    backgroundSecondary: '#1C1C1E', // iOS System Gray 6
     backgroundTertiary: '#2C2C2E',
 
     // Text
@@ -87,9 +88,9 @@ export default {
     textSecondary: 'rgba(255,255,255,0.6)',
     textTertiary: 'rgba(255,255,255,0.4)',
 
-    // Glass Effect (Glassmorphism)
-    glass: 'rgba(255,255,255,0.08)',
-    glassBorder: 'rgba(255,255,255,0.12)',
+    // Glass Effect (VisionOS Style)
+    glass: 'rgba(28, 28, 30, 0.6)', // Darker, more opaque glass
+    glassBorder: 'rgba(255,255,255,0.1)',
     glassHighlight: 'rgba(255,255,255,0.15)',
 
     // UI Elements

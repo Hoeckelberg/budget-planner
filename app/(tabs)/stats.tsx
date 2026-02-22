@@ -1,35 +1,60 @@
-import React from 'react';
-import { StyleSheet, ScrollView, View, Text, Platform } from 'react-native';
+import React, { useMemo } from 'react';
+import { StyleSheet, ScrollView, View, Text, Platform, ActivityIndicator } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Colors, { Typography, Spacing, CategoryColors } from '@/constants/Colors';
+import { LinearGradient } from 'expo-linear-gradient';
+import Colors, { Typography, Spacing, SemanticColors } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { GlassCard } from '@/components/GlassCard';
 import { DonutChart } from '@/components/DonutChart';
-
-const MOCK_MONTHLY_DATA = [
-    { month: 'Sep', income: 3200, expenses: 2100 },
-    { month: 'Okt', income: 3200, expenses: 2400 },
-    { month: 'Nov', income: 3450, expenses: 2200 },
-    { month: 'Dez', income: 3800, expenses: 2800 },
-    { month: 'Jan', income: 3200, expenses: 1900 },
-    { month: 'Feb', income: 3200, expenses: 1953 },
-];
-
-const MOCK_CATEGORIES = [
-    { id: '1', name: 'Miete', amount: 850, color: CategoryColors.rent },
-    { id: '2', name: 'Lebensmittel', amount: 320, color: CategoryColors.groceries },
-    { id: '3', name: 'Abos', amount: 89, color: CategoryColors.subscriptions },
-    { id: '4', name: 'Transport', amount: 120, color: CategoryColors.transport },
-    { id: '5', name: 'Essen gehen', amount: 180, color: CategoryColors.dining },
-    { id: '6', name: 'Freizeit', amount: 150, color: CategoryColors.entertainment },
-    { id: '7', name: 'Sonstiges', amount: 244, color: CategoryColors.other },
-];
+import { LineChart } from '@/components/LineChart';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMonthlyStats, useCategoryBreakdown } from '@/hooks/useSupabase';
 
 export default function StatsScreen() {
     const colorScheme = useColorScheme() ?? 'dark';
     const colors = Colors[colorScheme];
+    const { user } = useAuth();
 
-    const maxValue = Math.max(...MOCK_MONTHLY_DATA.map(d => Math.max(d.income, d.expenses)));
+    // Load real data from Supabase
+    const { stats, loading: statsLoading } = useMonthlyStats(user?.id, 6);
+    const { breakdown, loading: breakdownLoading } = useCategoryBreakdown(user?.id);
+
+    // Format data for line charts
+    const incomeData = useMemo(() => {
+        return stats.map(s => ({
+            label: new Date(s.month).toLocaleDateString('de-DE', { month: 'short' }),
+            value: s.income,
+        }));
+    }, [stats]);
+
+    const expenseData = useMemo(() => {
+        return stats.map(s => ({
+            label: new Date(s.month).toLocaleDateString('de-DE', { month: 'short' }),
+            value: s.expenses,
+        }));
+    }, [stats]);
+
+    // Format data for category donut chart
+    const categoryData = useMemo(() => {
+        return breakdown.map(b => ({
+            id: b.category_id,
+            name: b.category_name,
+            amount: b.total_amount,
+            color: b.category_color || '#8E8E93',
+        }));
+    }, [breakdown]);
+
+    // Calculate insights
+    const currentMonth = stats[stats.length - 1];
+    const previousMonth = stats[stats.length - 2];
+
+    const savingsRate = currentMonth && currentMonth.income > 0
+        ? ((currentMonth.net_savings / currentMonth.income) * 100).toFixed(0)
+        : 0;
+
+    const totalIncome = stats.reduce((sum, s) => sum + s.income, 0);
+    const totalExpenses = stats.reduce((sum, s) => sum + s.expenses, 0);
+    const totalSavings = totalIncome - totalExpenses;
 
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -38,110 +63,184 @@ export default function StatsScreen() {
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Header */}
-                <Animated.View entering={FadeInDown.delay(100)}>
-                    <Text style={[Typography.largeTitle, { color: colors.text }]}>
-                        Statistik
-                    </Text>
-                    <Text style={[Typography.subhead, { color: colors.textSecondary }]}>
-                        Deine Finanzübersicht
-                    </Text>
+                {/* Header with Gradient */}
+                <Animated.View entering={FadeInDown.delay(100).springify()}>
+                    <GlassCard style={styles.headerCard}>
+                        <LinearGradient
+                            colors={['#007AFF', '#5856D6']}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 1, y: 1 }}
+                            style={styles.headerGradient}
+                        >
+                            <Text style={[Typography.largeTitle, { color: '#FFFFFF' }]}>
+                                Statistik
+                            </Text>
+                            <Text style={[Typography.subhead, { color: 'rgba(255,255,255,0.8)', marginTop: 4 }]}>
+                                Deine Finanzübersicht
+                            </Text>
+                        </LinearGradient>
+                    </GlassCard>
                 </Animated.View>
 
-                {/* Monthly Overview Chart */}
-                <Animated.View entering={FadeInDown.delay(200)}>
+                {/* Summary Cards */}
+                <Animated.View entering={FadeInDown.delay(200).springify()}>
+                    <View style={styles.summaryRow}>
+                        <GlassCard style={[styles.summaryCard, { marginRight: 6 }]}>
+                            <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
+                                Gesamt Einnahmen
+                            </Text>
+                            <Text style={[Typography.title2, { color: SemanticColors.income, marginTop: 4 }]}>
+                                €{totalIncome.toLocaleString('de-DE')}
+                            </Text>
+                        </GlassCard>
+                        <GlassCard style={[styles.summaryCard, { marginLeft: 6 }]}>
+                            <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
+                                Gesamt Ausgaben
+                            </Text>
+                            <Text style={[Typography.title2, { color: SemanticColors.expense, marginTop: 4 }]}>
+                                €{totalExpenses.toLocaleString('de-DE')}
+                            </Text>
+                        </GlassCard>
+                    </View>
+                </Animated.View>
+
+                {/* Income Trend */}
+                <Animated.View entering={FadeInDown.delay(300).springify()}>
                     <Text style={[Typography.title3, { color: colors.text, marginTop: Spacing.xl, marginBottom: Spacing.md }]}>
-                        📊 Monatlicher Verlauf
+                        📈 Einnahmen Trend
                     </Text>
                     <GlassCard>
-                        <View style={styles.barChart}>
-                            {MOCK_MONTHLY_DATA.map((data, index) => (
-                                <View key={data.month} style={styles.barGroup}>
-                                    {/* Income bar */}
-                                    <View style={styles.barContainer}>
-                                        <View
-                                            style={[
-                                                styles.bar,
-                                                styles.incomeBar,
-                                                { height: `${(data.income / maxValue) * 100}%` }
-                                            ]}
-                                        />
-                                    </View>
-                                    {/* Expense bar */}
-                                    <View style={styles.barContainer}>
-                                        <View
-                                            style={[
-                                                styles.bar,
-                                                styles.expenseBar,
-                                                { height: `${(data.expenses / maxValue) * 100}%` }
-                                            ]}
-                                        />
-                                    </View>
-                                    <Text style={[Typography.caption2, { color: colors.textSecondary }]}>
-                                        {data.month}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
+                        {statsLoading ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color="#007AFF" />
+                            </View>
+                        ) : incomeData.length === 0 ? (
+                            <View style={styles.emptyContainer}>
+                                <Text style={[Typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                                    Noch keine Daten vorhanden
+                                </Text>
+                            </View>
+                        ) : (
+                            <LineChart
+                                data={incomeData}
+                                height={180}
+                                lineColor={SemanticColors.income}
+                                gradientColors={[SemanticColors.income, 'transparent']}
+                            />
+                        )}
+                    </GlassCard>
+                </Animated.View>
 
-                        {/* Legend */}
-                        <View style={styles.legend}>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#34C759' }]} />
-                                <Text style={[Typography.caption1, { color: colors.textSecondary }]}>Einnahmen</Text>
+                {/* Expense Trend */}
+                <Animated.View entering={FadeInDown.delay(400).springify()}>
+                    <Text style={[Typography.title3, { color: colors.text, marginTop: Spacing.xl, marginBottom: Spacing.md }]}>
+                        📉 Ausgaben Trend
+                    </Text>
+                    <GlassCard>
+                        {statsLoading ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color="#007AFF" />
                             </View>
-                            <View style={styles.legendItem}>
-                                <View style={[styles.legendDot, { backgroundColor: '#FF3B30' }]} />
-                                <Text style={[Typography.caption1, { color: colors.textSecondary }]}>Ausgaben</Text>
+                        ) : expenseData.length === 0 ? (
+                            <View style={styles.emptyContainer}>
+                                <Text style={[Typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                                    Noch keine Daten vorhanden
+                                </Text>
                             </View>
-                        </View>
+                        ) : (
+                            <LineChart
+                                data={expenseData}
+                                height={180}
+                                lineColor={SemanticColors.expense}
+                                gradientColors={[SemanticColors.expense, 'transparent']}
+                            />
+                        )}
                     </GlassCard>
                 </Animated.View>
 
                 {/* Category Breakdown */}
-                <Animated.View entering={FadeInDown.delay(300)}>
+                <Animated.View entering={FadeInDown.delay(500).springify()}>
                     <Text style={[Typography.title3, { color: colors.text, marginTop: Spacing.xl, marginBottom: Spacing.md }]}>
                         🏷️ Ausgaben nach Kategorie
                     </Text>
                     <GlassCard>
-                        <DonutChart
-                            data={MOCK_CATEGORIES}
-                            size={200}
-                            strokeWidth={24}
-                            centerLabel="Gesamt"
-                        />
+                        {breakdownLoading ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color="#007AFF" />
+                            </View>
+                        ) : categoryData.length === 0 ? (
+                            <View style={styles.emptyContainer}>
+                                <Text style={[Typography.body, { color: colors.textSecondary, textAlign: 'center' }]}>
+                                    Noch keine Ausgaben vorhanden
+                                </Text>
+                            </View>
+                        ) : (
+                            <DonutChart
+                                data={categoryData}
+                                size={220}
+                                strokeWidth={28}
+                                centerLabel={`€${totalExpenses.toFixed(0)}`}
+                                centerSubLabel="GESAMT"
+                            />
+                        )}
                     </GlassCard>
                 </Animated.View>
 
                 {/* Insights */}
-                <Animated.View entering={FadeInDown.delay(400)}>
+                <Animated.View entering={FadeInDown.delay(600).springify()}>
                     <Text style={[Typography.title3, { color: colors.text, marginTop: Spacing.xl, marginBottom: Spacing.md }]}>
                         💡 Insights
                     </Text>
 
-                    <GlassCard style={styles.insightCard}>
-                        <Text style={styles.insightIcon}>📈</Text>
-                        <View style={styles.insightContent}>
-                            <Text style={[Typography.headline, { color: colors.text }]}>
-                                Sparquote: 39%
-                            </Text>
-                            <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
-                                Du sparst mehr als der Durchschnitt (15%)!
-                            </Text>
-                        </View>
-                    </GlassCard>
+                    {currentMonth && (
+                        <GlassCard style={styles.insightCard}>
+                            <View style={styles.insightIconContainer}>
+                                <Text style={styles.insightIcon}>📊</Text>
+                            </View>
+                            <View style={styles.insightContent}>
+                                <Text style={[Typography.headline, { color: colors.text }]}>
+                                    Sparquote: {savingsRate}%
+                                </Text>
+                                <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 4 }]}>
+                                    {Number(savingsRate) > 15
+                                        ? '🎉 Großartig! Du sparst mehr als der Durchschnitt!'
+                                        : '💪 Versuche mindestens 15% zu sparen.'}
+                                </Text>
+                            </View>
+                        </GlassCard>
+                    )}
 
-                    <GlassCard style={styles.insightCardWithMargin}>
-                        <Text style={styles.insightIcon}>⚠️</Text>
-                        <View style={styles.insightContent}>
-                            <Text style={[Typography.headline, { color: colors.text }]}>
-                                Essen gehen: +23%
-                            </Text>
-                            <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
-                                Diese Kategorie ist im Vergleich zum Vormonat gestiegen.
-                            </Text>
-                        </View>
-                    </GlassCard>
+                    {currentMonth && previousMonth && currentMonth.expenses > previousMonth.expenses && (
+                        <GlassCard style={styles.insightCardWithMargin}>
+                            <View style={styles.insightIconContainer}>
+                                <Text style={styles.insightIcon}>⚠️</Text>
+                            </View>
+                            <View style={styles.insightContent}>
+                                <Text style={[Typography.headline, { color: colors.text }]}>
+                                    Ausgaben: +{((currentMonth.expenses - previousMonth.expenses) / previousMonth.expenses * 100).toFixed(0)}%
+                                </Text>
+                                <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 4 }]}>
+                                    Deine Ausgaben sind im Vergleich zum Vormonat gestiegen.
+                                </Text>
+                            </View>
+                        </GlassCard>
+                    )}
+
+                    {totalSavings > 0 && (
+                        <GlassCard style={styles.insightCardWithMargin}>
+                            <View style={styles.insightIconContainer}>
+                                <Text style={styles.insightIcon}>💰</Text>
+                            </View>
+                            <View style={styles.insightContent}>
+                                <Text style={[Typography.headline, { color: colors.text }]}>
+                                    Gesamt Ersparnis: €{totalSavings.toLocaleString('de-DE')}
+                                </Text>
+                                <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 4 }]}>
+                                    In den letzten {stats.length} Monaten gespart
+                                </Text>
+                            </View>
+                        </GlassCard>
+                    )}
                 </Animated.View>
 
                 <View style={{ height: 120 }} />
@@ -161,47 +260,33 @@ const styles = StyleSheet.create({
         padding: Spacing.md,
         paddingTop: Platform.OS === 'ios' ? 60 : Spacing.xl,
     },
-    barChart: {
+    headerCard: {
+        padding: 0,
+        overflow: 'hidden',
+    },
+    headerGradient: {
+        padding: Spacing.lg,
+        paddingVertical: Spacing.xl,
+    },
+    summaryRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
-        height: 150,
-        alignItems: 'flex-end',
-        marginBottom: Spacing.md,
+        marginTop: Spacing.md,
     },
-    barGroup: {
-        flexDirection: 'row',
-        alignItems: 'flex-end',
-        gap: 4,
+    summaryCard: {
+        flex: 1,
+        padding: Spacing.md,
     },
-    barContainer: {
-        width: 16,
-        height: 120,
-        justifyContent: 'flex-end',
-    },
-    bar: {
-        width: '100%',
-        borderRadius: 4,
-    },
-    incomeBar: {
-        backgroundColor: '#34C759',
-    },
-    expenseBar: {
-        backgroundColor: '#FF3B30',
-    },
-    legend: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: Spacing.lg,
-    },
-    legendItem: {
-        flexDirection: 'row',
+    loadingContainer: {
+        padding: Spacing.xl,
         alignItems: 'center',
-        gap: Spacing.xs,
+        justifyContent: 'center',
+        minHeight: 150,
     },
-    legendDot: {
-        width: 10,
-        height: 10,
-        borderRadius: 5,
+    emptyContainer: {
+        padding: Spacing.xl,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 150,
     },
     insightCard: {
         flexDirection: 'row',
@@ -214,8 +299,16 @@ const styles = StyleSheet.create({
         gap: Spacing.md,
         marginTop: Spacing.sm,
     },
+    insightIconContainer: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: 'rgba(255,255,255,0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     insightIcon: {
-        fontSize: 32,
+        fontSize: 24,
     },
     insightContent: {
         flex: 1,

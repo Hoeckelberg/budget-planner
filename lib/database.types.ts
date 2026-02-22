@@ -19,34 +19,25 @@ export interface Database {
             user_profiles: {
                 Row: {
                     id: string
-                    email: string
                     full_name: string | null
                     monthly_income: number
                     currency: string
-                    is_premium: boolean
-                    onboarding_completed: boolean
                     created_at: string
                     updated_at: string
                 }
                 Insert: {
                     id: string
-                    email: string
                     full_name?: string | null
                     monthly_income?: number
                     currency?: string
-                    is_premium?: boolean
-                    onboarding_completed?: boolean
                     created_at?: string
                     updated_at?: string
                 }
                 Update: {
                     id?: string
-                    email?: string
                     full_name?: string | null
                     monthly_income?: number
                     currency?: string
-                    is_premium?: boolean
-                    onboarding_completed?: boolean
                     created_at?: string
                     updated_at?: string
                 }
@@ -54,29 +45,26 @@ export interface Database {
             categories: {
                 Row: {
                     id: string
-                    user_id: string
                     name: string
-                    icon: string
-                    color: string
-                    is_default: boolean
+                    icon: string | null
+                    color: string | null
+                    type: 'expense' | 'income'
                     created_at: string
                 }
                 Insert: {
                     id?: string
-                    user_id: string
                     name: string
-                    icon: string
-                    color: string
-                    is_default?: boolean
+                    icon?: string | null
+                    color?: string | null
+                    type?: 'expense' | 'income'
                     created_at?: string
                 }
                 Update: {
                     id?: string
-                    user_id?: string
                     name?: string
-                    icon?: string
-                    color?: string
-                    is_default?: boolean
+                    icon?: string | null
+                    color?: string | null
+                    type?: 'expense' | 'income'
                     created_at?: string
                 }
             }
@@ -253,6 +241,18 @@ export interface Database {
                     category_color: string
                     total_amount: number
                     transaction_count: number
+                }[]
+            }
+            get_monthly_stats: {
+                Args: {
+                    user_uuid: string
+                    months_back?: number
+                }
+                Returns: {
+                    month: string
+                    income: number
+                    expenses: number
+                    net_savings: number
                 }[]
             }
         }

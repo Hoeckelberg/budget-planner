@@ -46,9 +46,9 @@ export function GlassCard({
     });
 
     const intensityStyles = {
-        low: { opacity: 0.6, blur: 10 },
-        medium: { opacity: 0.8, blur: 20 },
-        high: { opacity: 1, blur: 40 },
+        low: { opacity: 0.3, blur: 15 },    // More transparent
+        medium: { opacity: 0.5, blur: 25 }, // Standard VisionOS glass
+        high: { opacity: 0.7, blur: 40 },   // Heavy material
     };
 
     const glowStyle = glowColor ? Shadows.glow(glowColor) : {};

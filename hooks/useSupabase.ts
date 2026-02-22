@@ -26,7 +26,15 @@ export function useTransactions(userId: string | undefined) {
             try {
                 const { data, error } = await supabase
                     .from('transactions')
-                    .select('*')
+                    .select(`
+                        *,
+                        categories (
+                            id,
+                            name,
+                            icon,
+                            color
+                        )
+                    `)
                     .eq('user_id', userId)
                     .order('transaction_date', { ascending: false })
                     .limit(50);
@@ -67,24 +75,18 @@ export function useTransactions(userId: string | undefined) {
     return { transactions, loading, error };
 }
 
-// Hook to fetch user's categories
-export function useCategories(userId: string | undefined) {
+// Hook to fetch global categories (shared by all users)
+export function useCategories() {
     const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
     useEffect(() => {
-        if (!userId) {
-            setLoading(false);
-            return;
-        }
-
         const fetchCategories = async () => {
             try {
                 const { data, error } = await supabase
                     .from('categories')
                     .select('*')
-                    .eq('user_id', userId)
                     .order('name');
 
                 if (error) throw error;
@@ -97,7 +99,7 @@ export function useCategories(userId: string | undefined) {
         };
 
         fetchCategories();
-    }, [userId]);
+    }, []);
 
     return { categories, loading, error };
 }
@@ -177,10 +179,13 @@ export function useMonthlySummary(userId: string | undefined, month?: Date) {
 
         const fetchSummary = async () => {
             try {
-                const targetMonth = month ? month.toISOString().split('T')[0] : undefined;
+                // Format month as 'YYYY-MM' for SQL function
+                const currentMonth = month || new Date();
+                const targetMonth = currentMonth.toISOString().slice(0, 7); // '2026-02'
+
                 const { data, error } = await supabase.rpc('get_monthly_summary', {
                     user_uuid: userId,
-                    ...(targetMonth && { target_month: targetMonth }),
+                    target_month: targetMonth,
                 } as any);
 
                 if (error) throw error;
@@ -244,4 +249,43 @@ export function useCategoryBreakdown(
     }, [userId, startDate, endDate]);
 
     return { breakdown, loading, error };
+}
+
+// Hook to get monthly statistics
+export function useMonthlyStats(userId: string | undefined, monthsBack: number = 6) {
+    const [stats, setStats] = useState<Array<{
+        month: string;
+        income: number;
+        expenses: number;
+        net_savings: number;
+    }>>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<Error | null>(null);
+
+    useEffect(() => {
+        if (!userId) {
+            setLoading(false);
+            return;
+        }
+
+        const fetchStats = async () => {
+            try {
+                const { data, error } = await supabase.rpc('get_monthly_stats', {
+                    user_uuid: userId,
+                    months_back: monthsBack,
+                } as any);
+
+                if (error) throw error;
+                setStats(data || []);
+            } catch (err) {
+                setError(err as Error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, [userId, monthsBack]);
+
+    return { stats, loading, error };
 }

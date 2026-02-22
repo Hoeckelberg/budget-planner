@@ -27,6 +27,7 @@ interface DonutChartProps {
     size?: number;
     strokeWidth?: number;
     centerLabel?: string;
+    centerSubLabel?: string;
     centerValue?: string;
 }
 
@@ -39,6 +40,7 @@ export function DonutChart({
     size = 200,
     strokeWidth = 24,
     centerLabel = 'Gesamt',
+    centerSubLabel,
     centerValue,
 }: DonutChartProps) {
     const colorScheme = useColorScheme() ?? 'dark';
@@ -113,12 +115,19 @@ export function DonutChart({
 
             {/* Center content */}
             <View style={[styles.centerContent, { width: size, height: size }]}>
-                <Text style={[Typography.footnote, { color: colors.textSecondary }]}>
-                    {centerLabel}
-                </Text>
-                <Text style={[Typography.title1, { color: colors.text }]}>
+                <Text style={[Typography.title1, { color: colors.text, marginBottom: 4 }]}>
                     {centerValue || `€${total.toLocaleString('de-DE')}`}
                 </Text>
+                {centerSubLabel && (
+                    <Text style={[Typography.caption1, { color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 1 }]}>
+                        {centerSubLabel}
+                    </Text>
+                )}
+                {!centerSubLabel && centerLabel && (
+                    <Text style={[Typography.footnote, { color: colors.textSecondary }]}>
+                        {centerLabel}
+                    </Text>
+                )}
             </View>
 
             {/* Legend */}
