@@ -1,97 +1,122 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
     View,
     StyleSheet,
+    StyleProp,
     ViewStyle,
-    Platform
+    Platform,
+    Pressable,
 } from 'react-native';
 import Animated, {
     useAnimatedStyle,
-    withSpring,
     useSharedValue,
-    withTiming,
-    interpolate,
+    withSpring,
 } from 'react-native-reanimated';
-import Colors, { BorderRadius, Shadows } from '@/constants/Colors';
-import { useColorScheme } from './useColorScheme';
+import { GlassTiers, Shadows, BorderRadius } from '@/constants/Colors';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Elevation = 'base' | 'elevated' | 'overlay';
 
 interface GlassCardProps {
     children: React.ReactNode;
-    style?: ViewStyle;
-    intensity?: 'low' | 'medium' | 'high';
-    animated?: boolean;
+    style?: StyleProp<ViewStyle>;
+    elevation?: Elevation;
+    /** Adds a colored glow shadow (pass a hex color) */
     glowColor?: string;
+    /** If true, card has pressable spring feedback */
+    pressable?: boolean;
+    onPress?: () => void;
+    /** Border radius override — defaults to lg (20) */
+    radius?: number;
 }
 
-/**
- * GlassCard - Glassmorphism card component with Apple-style design
- * Features backdrop blur effect and subtle border highlights
- */
+// ─── Component ────────────────────────────────────────────────────────────────
 export function GlassCard({
     children,
     style,
-    intensity = 'medium',
-    animated = false,
+    elevation = 'elevated',
     glowColor,
+    pressable = false,
+    onPress,
+    radius = BorderRadius.lg,
 }: GlassCardProps) {
-    const colorScheme = useColorScheme() ?? 'dark';
-    const colors = Colors[colorScheme];
-
+    const tier = GlassTiers[elevation];
     const scale = useSharedValue(1);
 
-    const animatedStyle = useAnimatedStyle(() => {
-        return {
-            transform: [{ scale: withSpring(scale.value) }],
-        };
-    });
+    const animatedStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
 
-    const intensityStyles = {
-        low: { opacity: 0.3, blur: 15 },    // More transparent
-        medium: { opacity: 0.5, blur: 25 }, // Standard VisionOS glass
-        high: { opacity: 0.7, blur: 40 },   // Heavy material
-    };
+    const handlePressIn = useCallback(() => {
+        if (pressable || onPress) {
+            scale.value = withSpring(0.972, { damping: 18, stiffness: 300 });
+        }
+    }, [pressable, onPress, scale]);
 
-    const glowStyle = glowColor ? Shadows.glow(glowColor) : {};
+    const handlePressOut = useCallback(() => {
+        if (pressable || onPress) {
+            scale.value = withSpring(1, { damping: 18, stiffness: 300 });
+        }
+    }, [pressable, onPress, scale]);
 
-    const cardStyles = [
+    const glowStyle = glowColor ? Shadows.glow(glowColor) : Shadows.md;
+
+    const baseStyle: StyleProp<ViewStyle>[] = [
         styles.card,
         {
-            backgroundColor: colors.glass,
-            borderColor: colors.glassBorder,
+            backgroundColor: tier.background,
+            borderColor: tier.border,
+            borderRadius: radius,
         },
         glowStyle,
-        style,
+        style ?? {},
     ];
 
-    if (animated) {
+    const content = (
+        <>
+            {/* Inner top-edge highlight — the "glass catches light" effect */}
+            <View
+                style={[
+                    styles.highlight,
+                    {
+                        backgroundColor: tier.highlight,
+                        borderTopLeftRadius: radius,
+                        borderTopRightRadius: radius,
+                    },
+                ]}
+                pointerEvents="none"
+            />
+            {children}
+        </>
+    );
+
+    if (pressable || onPress) {
         return (
-            <Animated.View style={[cardStyles, animatedStyle]}>
-                {/* Inner highlight for glass effect */}
-                <View style={[styles.highlight, { opacity: intensityStyles[intensity].opacity * 0.1 }]} />
-                {children}
-            </Animated.View>
+            <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+                <Animated.View style={[baseStyle, animatedStyle]}>
+                    {content}
+                </Animated.View>
+            </Pressable>
         );
     }
 
     return (
-        <View style={cardStyles}>
-            <View style={[styles.highlight, { opacity: intensityStyles[intensity].opacity * 0.1 }]} />
-            {children}
+        <View style={baseStyle}>
+            {content}
         </View>
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     card: {
-        borderRadius: BorderRadius.xl,
         borderWidth: 1,
         padding: 20,
         overflow: 'hidden',
-        // Backdrop blur for web
         ...Platform.select({
             web: {
-                backdropFilter: 'blur(20px)',
-                WebkitBackdropFilter: 'blur(20px)',
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
             } as any,
         }),
     },
@@ -100,10 +125,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         right: 0,
-        height: '50%',
-        borderTopLeftRadius: BorderRadius.xl,
-        borderTopRightRadius: BorderRadius.xl,
-        backgroundColor: 'rgba(255,255,255,0.1)',
+        height: 44,
         pointerEvents: 'none',
     },
 });

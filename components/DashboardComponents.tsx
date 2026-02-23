@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, StyleSheet, Text, Pressable, ViewStyle } from 'react-native';
+import React, { useCallback } from 'react';
+import { View, StyleSheet, Text, Alert, Platform } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
@@ -7,11 +7,15 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import Colors, { Typography, Spacing, BorderRadius, SemanticColors } from '@/constants/Colors';
+import Colors, { Typography, Spacing, BorderRadius, SemanticColors, Gradients } from '@/constants/Colors';
 import { useColorScheme } from './useColorScheme';
 import { GlassCard } from './GlassCard';
 import { CircularProgress } from './CircularProgress';
+import { AnimatedNumber } from './ui/AnimatedNumber';
+import { PressableScale } from './ui/PressableScale';
+import { Pressable } from 'react-native';
 
+// ─── BalanceCard ─────────────────────────────────────────────────────────────
 interface BalanceCardProps {
     availableAmount: number;
     totalBudget: number;
@@ -19,117 +23,115 @@ interface BalanceCardProps {
     onPress?: () => void;
 }
 
-/**
- * BalanceCard - Hero card showing remaining budget with animated progress
- */
 export function BalanceCard({
     availableAmount,
     totalBudget,
     month = 'diesen Monat',
     onPress,
 }: BalanceCardProps) {
-    const colorScheme = useColorScheme() ?? 'dark';
-    const colors = Colors[colorScheme];
+    const progress = totalBudget > 0 ? Math.max(0, availableAmount / totalBudget) : 0;
+    const isNegative = availableAmount < 0;
 
-    const progress = totalBudget > 0 ? availableAmount / totalBudget : 0;
-    const scale = useSharedValue(1);
-
-    const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
-
-    const handlePressIn = () => {
-        scale.value = withSpring(0.98);
-    };
-
-    const handlePressOut = () => {
-        scale.value = withSpring(1);
-    };
+    // Gradient shifts red if balance is negative
+    const gradientColors = isNegative
+        ? ['#C0392B', '#922B21'] as [string, string]
+        : Gradients.primary;
 
     return (
-        <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
-            <Animated.View style={animatedStyle}>
-                <GlassCard style={styles.heroCard} intensity="high">
-                    <LinearGradient
-                        colors={['#007AFF', '#5856D6']} // Classic Apple Blue Gradient
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.gradientBackground}
-                    >
-                        <View style={styles.heroContent}>
-                            {/* Available Amount */}
-                            <View style={styles.heroLeft}>
-                                <Text style={styles.heroAmount}>
-                                    €{Math.round(availableAmount).toLocaleString('de-DE')}
-                                </Text>
-                                <Text style={styles.heroLabel}>Verfügbar</Text>
-                            </View>
+        <PressableScale onPress={onPress} style={styles.heroCardWrapper}>
+            <GlassCard style={styles.heroCard} elevation="overlay" radius={BorderRadius.xl}>
+                <LinearGradient
+                    colors={gradientColors}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={StyleSheet.absoluteFillObject}
+                />
 
-                            {/* Circular Progress */}
-                            <View style={styles.heroRight}>
-                                <CircularProgress
-                                    percentage={Math.min(progress * 100, 100)}
-                                    size={80}
-                                    strokeWidth={8}
-                                    color="#FFFFFF"
-                                    backgroundColor="rgba(255, 255, 255, 0.2)"
-                                />
-                            </View>
-                        </View>
-                    </LinearGradient>
-                </GlassCard>
-            </Animated.View>
-        </Pressable>
+                <View style={styles.heroContent}>
+                    {/* Left: Balance */}
+                    <View style={styles.heroLeft}>
+                        <Text style={styles.heroLabel}>Verfügbar</Text>
+
+                        <AnimatedNumber
+                            value={Math.abs(availableAmount)}
+                            prefix={isNegative ? '-€' : '€'}
+                            decimals={0}
+                            duration={700}
+                            style={styles.heroAmount}
+                        />
+
+                        <Text style={styles.heroSub}>{month}</Text>
+                    </View>
+
+                    {/* Right: Progress Ring */}
+                    <View style={styles.heroRight}>
+                        <CircularProgress
+                            percentage={Math.min(progress * 100, 100)}
+                            size={84}
+                            strokeWidth={7}
+                            color="#FFFFFF"
+                            backgroundColor="rgba(255,255,255,0.18)"
+                        />
+                        <Text style={styles.heroRingLabel}>
+                            {Math.round(progress * 100)}%
+                        </Text>
+                    </View>
+                </View>
+            </GlassCard>
+        </PressableScale>
     );
 }
 
+// ─── QuickStatRow ─────────────────────────────────────────────────────────────
 interface QuickStatRowProps {
     income: number;
     expenses: number;
 }
 
-/**
- * QuickStatRow - Apple-style Income/Expense cards (2 Columns)
- */
 export function QuickStatRow({ income, expenses }: QuickStatRowProps) {
     const colorScheme = useColorScheme() ?? 'dark';
     const colors = Colors[colorScheme];
 
     return (
         <View style={styles.statsRow}>
-            {/* Income Card */}
-            <GlassCard style={[styles.statCard, { marginRight: 6 }]}>
-                <View style={styles.statHeader}>
-                    <View style={[styles.iconContainer, { backgroundColor: 'rgba(52, 199, 89, 0.15)' }]}>
-                        <Text style={{ color: SemanticColors.income, fontSize: 12, fontWeight: 'bold' }}>↓</Text>
-                    </View>
-                    <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
-                        Einkommen
+            {/* Income */}
+            <GlassCard style={[styles.statCard, { marginRight: 6 }]} elevation="base">
+                <View style={styles.statIconRow}>
+                    <View style={[styles.statDot, { backgroundColor: SemanticColors.income }]} />
+                    <Text style={[Typography.caption1, { color: colors.textSecondary, letterSpacing: 0.5 }]}>
+                        EINNAHMEN
                     </Text>
                 </View>
-                <Text style={[Typography.body, { fontWeight: '700', color: SemanticColors.income, marginTop: 8, fontSize: 18 }]}>
-                    €{income.toLocaleString('de-DE')}
-                </Text>
+                <AnimatedNumber
+                    value={income}
+                    prefix="€"
+                    decimals={0}
+                    duration={600}
+                    style={[styles.statAmount, { color: SemanticColors.income }]}
+                />
             </GlassCard>
 
-            {/* Expense Card */}
-            <GlassCard style={[styles.statCard, { marginLeft: 6 }]}>
-                <View style={styles.statHeader}>
-                    <View style={[styles.iconContainer, { backgroundColor: 'rgba(255, 59, 48, 0.15)' }]}>
-                        <Text style={{ color: SemanticColors.expense, fontSize: 12, fontWeight: 'bold' }}>↑</Text>
-                    </View>
-                    <Text style={[Typography.caption1, { color: colors.textSecondary }]}>
-                        Ausgaben
+            {/* Expenses */}
+            <GlassCard style={[styles.statCard, { marginLeft: 6 }]} elevation="base">
+                <View style={styles.statIconRow}>
+                    <View style={[styles.statDot, { backgroundColor: SemanticColors.expense }]} />
+                    <Text style={[Typography.caption1, { color: colors.textSecondary, letterSpacing: 0.5 }]}>
+                        AUSGABEN
                     </Text>
                 </View>
-                <Text style={[Typography.body, { fontWeight: '700', color: SemanticColors.expense, marginTop: 8, fontSize: 18 }]}>
-                    €{expenses.toLocaleString('de-DE')}
-                </Text>
+                <AnimatedNumber
+                    value={expenses}
+                    prefix="€"
+                    decimals={0}
+                    duration={600}
+                    style={[styles.statAmount, { color: SemanticColors.expense }]}
+                />
             </GlassCard>
         </View>
     );
 }
 
+// ─── TransactionItem ──────────────────────────────────────────────────────────
 interface TransactionItemProps {
     id: string;
     title: string;
@@ -138,14 +140,13 @@ interface TransactionItemProps {
     date: string;
     icon: string;
     type: 'income' | 'expense';
+    categoryColor?: string;
+    isRecurring?: boolean;
     onPress?: () => void;
     onEdit?: (id: string) => void;
     onDelete?: (id: string) => void;
 }
 
-/**
- * TransactionItem - Single transaction row with swipe actions
- */
 export function TransactionItem({
     id,
     title,
@@ -154,6 +155,8 @@ export function TransactionItem({
     date,
     icon,
     type,
+    categoryColor,
+    isRecurring = false,
     onPress,
     onEdit,
     onDelete,
@@ -162,89 +165,99 @@ export function TransactionItem({
     const colors = Colors[colorScheme];
 
     const amountColor = type === 'income' ? SemanticColors.income : colors.text;
-    const amountPrefix = type === 'income' ? '+' : '';
+    const amountPrefix = type === 'income' ? '+€' : '€';
+    const accentColor = categoryColor ?? (type === 'income' ? SemanticColors.income : '#5856D6');
 
-    const translateX = useSharedValue(0);
     const itemHeight = useSharedValue(72);
-    const opacity = useSharedValue(1);
+    const itemOpacity = useSharedValue(1);
+    const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateX: translateX.value }],
         height: itemHeight.value,
-        opacity: opacity.value,
+        opacity: itemOpacity.value,
+        transform: [{ scale: scale.value }],
     }));
 
-    // Animate swipe actions visibility based on translateX
-    const swipeActionsStyle = useAnimatedStyle(() => {
-        const isVisible = translateX.value < -10;
-        return {
-            opacity: withTiming(isVisible ? 1 : 0, { duration: 200 }),
-            pointerEvents: isVisible ? 'auto' : 'none',
-        };
-    });
+    const handlePressIn = useCallback(() => {
+        scale.value = withSpring(0.98, { damping: 20, stiffness: 400 });
+    }, [scale]);
 
-    const handleEdit = () => {
-        translateX.value = withSpring(0);
-        onEdit?.(id);
-    };
+    const handlePressOut = useCallback(() => {
+        scale.value = withSpring(1, { damping: 20, stiffness: 400 });
+    }, [scale]);
 
-    const handleDelete = () => {
-        translateX.value = withTiming(-400, { duration: 300 });
-        opacity.value = withTiming(0, { duration: 300 });
-        itemHeight.value = withTiming(0, { duration: 300 }, () => {
-            onDelete?.(id);
-        });
-    };
+    const handleDelete = useCallback(() => {
+        Alert.alert('Löschen', 'Transaktion wirklich löschen?', [
+            { text: 'Abbrechen', style: 'cancel' },
+            {
+                text: 'Löschen',
+                style: 'destructive',
+                onPress: () => {
+                    itemOpacity.value = withTiming(0, { duration: 250 });
+                    itemHeight.value = withTiming(0, { duration: 300 }, () => {
+                        onDelete?.(id);
+                    });
+                },
+            },
+        ]);
+    }, [id, itemOpacity, itemHeight, onDelete]);
 
     return (
-        <View style={{ overflow: 'hidden' }}>
-            {/* Swipe Actions Background - Hidden until swipe */}
-            <Animated.View style={[styles.swipeActions, swipeActionsStyle]}>
-                <Pressable
-                    style={[styles.swipeButton, styles.editButton]}
-                    onPress={handleEdit}
-                >
-                    <Text style={styles.swipeButtonText}>✏️</Text>
-                </Pressable>
-                <Pressable
-                    style={[styles.swipeButton, styles.deleteButton]}
-                    onPress={handleDelete}
-                >
-                    <Text style={styles.swipeButtonText}>🗑️</Text>
-                </Pressable>
-            </Animated.View>
+        <Animated.View style={animatedStyle}>
+            <Pressable
+                onPress={onPress || (() => { })}
+                onLongPress={() => {
+                    Alert.alert(title, category, [
+                        { text: 'Bearbeiten', onPress: () => onEdit?.(id) },
+                        { text: 'Löschen', style: 'destructive', onPress: handleDelete },
+                        { text: 'Abbrechen', style: 'cancel' },
+                    ]);
+                }}
+                onPressIn={handlePressIn}
+                onPressOut={handlePressOut}
+                delayLongPress={300}
+                style={Platform.select({ web: { cursor: 'pointer' } as any })}
+            >
+                <View style={[styles.transactionRow, { borderBottomColor: colors.separator }]}>
+                    {/* Left accent bar — category color coding */}
+                    <View style={[styles.accentBar, { backgroundColor: accentColor }]} />
 
-            {/* Main Transaction Item */}
-            <Animated.View style={animatedStyle}>
-                <Pressable
-                    onPress={onPress}
-                    onLongPress={() => {
-                        translateX.value = withSpring(-140);
-                    }}
-                    delayLongPress={200}
-                >
-                    <View style={[styles.transactionItem, { borderBottomColor: colors.separator }]}>
-                        <View style={[styles.transactionIcon, { backgroundColor: 'rgba(255,255,255,0.1)' }]}>
-                            <Text style={{ fontSize: 20 }}>{icon}</Text>
-                        </View>
+                    {/* Icon bubble */}
+                    <View style={[styles.iconBubble, { backgroundColor: `${accentColor}20` }]}>
+                        <Text style={{ fontSize: 19 }}>{icon}</Text>
+                    </View>
 
-                        <View style={styles.transactionInfo}>
-                            <Text style={[Typography.body, { color: colors.text, fontWeight: '600' }]}>{title}</Text>
-                            <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 2 }]}>
-                                {category} • {date}
+                    {/* Info */}
+                    <View style={styles.transactionInfo}>
+                        <View style={styles.titleRow}>
+                            <Text
+                                style={[Typography.headline, { color: colors.text }]}
+                                numberOfLines={1}
+                            >
+                                {title}
                             </Text>
+                            {isRecurring && (
+                                <View style={styles.recurringBadge}>
+                                    <Text style={styles.recurringText}>↻</Text>
+                                </View>
+                            )}
                         </View>
-
-                        <Text style={[Typography.headline, { color: amountColor, fontSize: 17 }]}>
-                            {amountPrefix}{amount < 0 ? amount.toLocaleString('de-DE') : `€${amount.toLocaleString('de-DE')}`}
+                        <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 2 }]}>
+                            {category} · {date}
                         </Text>
                     </View>
-                </Pressable>
-            </Animated.View>
-        </View>
+
+                    {/* Amount */}
+                    <Text style={[styles.amountText, { color: amountColor }]}>
+                        {amountPrefix}{amount.toLocaleString('de-DE', { minimumFractionDigits: 0 })}
+                    </Text>
+                </View>
+            </Pressable>
+        </Animated.View>
     );
 }
 
+// ─── SectionHeader ────────────────────────────────────────────────────────────
 interface SectionHeaderProps {
     title: string;
     action?: string;
@@ -257,7 +270,9 @@ export function SectionHeader({ title, action, onActionPress }: SectionHeaderPro
 
     return (
         <View style={styles.sectionHeader}>
-            <Text style={[Typography.title3, { color: colors.text }]}>{title}</Text>
+            <Text style={[Typography.headline, { color: colors.text, letterSpacing: 0.2 }]}>
+                {title}
+            </Text>
             {action && (
                 <Pressable onPress={onActionPress}>
                     <Text style={[Typography.subhead, { color: colors.tint }]}>{action}</Text>
@@ -267,85 +282,112 @@ export function SectionHeader({ title, action, onActionPress }: SectionHeaderPro
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-    // Hero Card (Apple Style)
-    heroCard: {
-        height: 180,
+    // BalanceCard
+    heroCardWrapper: {
         marginBottom: 12,
-        overflow: 'hidden',
-        padding: 0,
-        borderRadius: 24,
     },
-    gradientBackground: {
-        flex: 1,
-        padding: 24,
-        borderRadius: 24,
+    heroCard: {
+        height: 172,
+        padding: 0,
+        overflow: 'hidden',
     },
     heroContent: {
         flex: 1,
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 20,
     },
     heroLeft: {
         flex: 1,
         justifyContent: 'center',
-    },
-    heroAmount: {
-        fontSize: 42,
-        fontWeight: '700',
-        color: '#FFFFFF',
-        letterSpacing: -1,
-        marginBottom: 4,
+        gap: 2,
     },
     heroLabel: {
-        fontSize: 15,
+        fontSize: 11,
         fontWeight: '600',
-        color: 'rgba(255, 255, 255, 0.7)',
+        color: 'rgba(255,255,255,0.65)',
         textTransform: 'uppercase',
-        letterSpacing: 0.5,
+        letterSpacing: 1.2,
+        marginBottom: 4,
+    },
+    heroAmount: {
+        fontSize: 44,
+        fontWeight: '700',
+        color: '#FFFFFF',
+        letterSpacing: -2,
+        lineHeight: 52,
+        // Transparent bg required for AnimatedNumber (TextInput)
+        backgroundColor: 'transparent',
+        padding: 0,
+        borderWidth: 0,
+    },
+    heroSub: {
+        fontSize: 13,
+        color: 'rgba(255,255,255,0.5)',
+        marginTop: 4,
     },
     heroRight: {
-        justifyContent: 'center',
         alignItems: 'center',
+        gap: 4,
+    },
+    heroRingLabel: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: 'rgba(255,255,255,0.75)',
+        letterSpacing: 0.5,
     },
 
-    // Stats Grid
+    // QuickStatRow
     statsRow: {
         flexDirection: 'row',
-        marginBottom: 24,
+        marginBottom: 16,
     },
     statCard: {
         flex: 1,
-        padding: 16,
-        paddingVertical: 20,
-        borderRadius: 20,
+        paddingVertical: 16,
+        paddingHorizontal: 16,
     },
-    statHeader: {
+    statIconRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
-        marginBottom: 4,
+        gap: 6,
+        marginBottom: 8,
     },
-    iconContainer: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
+    statDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    statAmount: {
+        fontSize: 22,
+        fontWeight: '700',
+        letterSpacing: -0.5,
+        // For AnimatedNumber (TextInput)
+        backgroundColor: 'transparent',
+        padding: 0,
+        borderWidth: 0,
     },
 
-    // Transactions
-    transactionItem: {
+    // TransactionItem
+    transactionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingVertical: 12,
-        paddingHorizontal: 16,
-        borderBottomWidth: 0.5, // Thinner separator for retina
-        gap: 12,
         height: 72,
+        borderBottomWidth: 0.5,
+        paddingRight: 16,
+        gap: 12,
     },
-    transactionIcon: {
+    accentBar: {
+        width: 3,
+        height: 36,
+        borderRadius: 2,
+        marginLeft: 0,
+    },
+    iconBubble: {
         width: 40,
         height: 40,
         borderRadius: 20,
@@ -355,34 +397,36 @@ const styles = StyleSheet.create({
     transactionInfo: {
         flex: 1,
     },
-    swipeActions: {
-        position: 'absolute',
-        right: 0,
-        top: 0,
-        bottom: 0,
+    titleRow: {
         flexDirection: 'row',
         alignItems: 'center',
+        gap: 6,
     },
-    swipeButton: {
-        width: 70,
-        height: '100%',
-        justifyContent: 'center',
-        alignItems: 'center',
+    recurringBadge: {
+        backgroundColor: 'rgba(0,122,255,0.18)',
+        borderRadius: 6,
+        paddingHorizontal: 5,
+        paddingVertical: 1,
     },
-    editButton: {
-        backgroundColor: '#3A3A3C', // Muted dark gray
+    recurringText: {
+        color: '#007AFF',
+        fontSize: 10,
+        fontWeight: '700',
     },
-    deleteButton: {
-        backgroundColor: '#8B3A3A', // Muted dark red
+    amountText: {
+        fontSize: 16,
+        fontWeight: '600',
+        letterSpacing: -0.3,
+        fontVariant: ['tabular-nums'] as any,
     },
-    swipeButtonText: {
-        fontSize: 24,
-    },
+
+    // SectionHeader
     sectionHeader: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: Spacing.md,
+        marginBottom: 10,
         marginTop: Spacing.lg,
+        paddingHorizontal: 2,
     },
 });

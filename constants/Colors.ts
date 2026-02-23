@@ -1,116 +1,113 @@
 /**
- * Budget Planner - Apple-Style Design System Colors
- * Optimized for Dark Mode with Glassmorphism effects
+ * Budget Planner — VisionOS++ Design System
+ * Precision-engineered for premium mobile finance UI
  */
 
-// Core Brand Colors
-const AppleBlue = '#007AFF';
-const AppleGreen = '#34C759';
-const AppleOrange = '#FF9500';
-const AppleRed = '#FF3B30';
-const ApplePurple = '#AF52DE';
-const ApplePink = '#FF2D55';
-const AppleTeal = '#5AC8FA';
+// ─── Core Palette ────────────────────────────────────────────────────────────
+const Blue = '#007AFF';
+const Green = '#34C759';
+const Red = '#FF3B30';
+const Orange = '#FF9500';
+const Purple = '#AF52DE';
+const Pink = '#FF2D55';
+const Teal = '#5AC8FA';
+const Indigo = '#5856D6';
+const Yellow = '#FFD60A';
 
-// Gradient Definitions
-export const Gradients = {
-  primary: ['#007AFF', '#5856D6'],
-  success: ['#34C759', '#30D158'],
-  premium: ['#FFD60A', '#FF9F0A'],
-  expense: ['#FF3B30', '#FF6961'],
-  glass: ['rgba(255,255,255,0.15)', 'rgba(255,255,255,0.05)'],
-};
-
-// Semantic Colors
+// ─── Semantic Colors ──────────────────────────────────────────────────────────
 export const SemanticColors = {
-  income: AppleGreen,
-  expense: AppleRed,
-  savings: AppleBlue,
-  warning: AppleOrange,
-  investment: ApplePurple,
-  goal: AppleTeal,
+  income: Green,
+  expense: Red,
+  savings: Blue,
+  warning: Orange,
+  investment: Purple,
+  goal: Teal,
 };
 
-// Category Colors for Charts
+// ─── Category Colors (Charts) ─────────────────────────────────────────────────
 export const CategoryColors = {
-  rent: '#5856D6',      // Indigo
-  groceries: '#34C759', // Green
-  subscriptions: '#FF9500', // Orange
-  transport: '#007AFF', // Blue
-  dining: '#FF2D55',    // Pink
-  entertainment: '#AF52DE', // Purple
-  utilities: '#5AC8FA', // Teal
-  health: '#FF3B30',    // Red
-  shopping: '#FFD60A',  // Yellow
-  other: '#8E8E93',     // Gray
+  rent: Indigo,
+  groceries: Green,
+  subscriptions: Orange,
+  transport: Blue,
+  dining: Pink,
+  entertainment: Purple,
+  utilities: Teal,
+  health: Red,
+  shopping: Yellow,
+  other: '#8E8E93',
+};
+
+// ─── Gradients ────────────────────────────────────────────────────────────────
+export const Gradients = {
+  primary: [Blue, Indigo] as [string, string],
+  success: [Green, '#30D158'] as [string, string],
+  premium: [Yellow, Orange] as [string, string],
+  expense: [Red, '#FF6961'] as [string, string],
+  glass: ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)'] as [string, string],
+  dark: ['#070A0F', '#0D1117'] as [string, string],
+};
+
+// ─── Glass Elevation Tiers ───────────────────────────────────────────────────
+// Three distinct depth layers — background is #070A0F
+export const GlassTiers = {
+  base: {
+    background: 'rgba(255,255,255,0.06)',
+    border: 'rgba(255,255,255,0.10)',
+    highlight: 'rgba(255,255,255,0.05)',
+  },
+  elevated: {
+    background: 'rgba(255,255,255,0.10)',
+    border: 'rgba(255,255,255,0.14)',
+    highlight: 'rgba(255,255,255,0.08)',
+  },
+  overlay: {
+    background: 'rgba(255,255,255,0.16)',
+    border: 'rgba(255,255,255,0.20)',
+    highlight: 'rgba(255,255,255,0.12)',
+  },
+};
+
+// ─── Color Scheme ─────────────────────────────────────────────────────────────
+// Forced dark mode — same token used for both to ensure consistency
+const scheme = {
+  // Depth
+  background: '#070A0F',
+  backgroundSecondary: '#0D1117',
+  backgroundTertiary: '#13181F',
+
+  // Text
+  text: '#FFFFFF',
+  textSecondary: 'rgba(255,255,255,0.55)',
+  textTertiary: 'rgba(255,255,255,0.35)',
+
+  // Glass (legacy — keep for backward compat, maps to 'elevated' tier)
+  glass: GlassTiers.elevated.background,
+  glassBorder: GlassTiers.elevated.border,
+  glassHighlight: GlassTiers.elevated.highlight,
+
+  // Brand
+  tint: Blue,
+  tabIconDefault: '#636366',
+  tabIconSelected: Blue,
+  separator: 'rgba(255,255,255,0.08)',
+
+  // Cards (legacy compat)
+  cardBackground: GlassTiers.base.background,
+  cardShadow: 'rgba(0,0,0,0.6)',
+
+  // Semantic shorthands
+  success: Green,
+  warning: Orange,
+  error: Red,
 };
 
 export default {
-  light: {
-    // Force Dark Mode even in Light Mode
-    background: '#000000', // Deep Black
-    backgroundSecondary: '#1C1C1E', // iOS System Gray 6
-    backgroundTertiary: '#2C2C2E',
-
-    // Text
-    text: '#FFFFFF',
-    textSecondary: 'rgba(255,255,255,0.6)',
-    textTertiary: 'rgba(255,255,255,0.4)',
-
-    // Glass Effect (VisionOS Style)
-    glass: 'rgba(28, 28, 30, 0.6)', // Darker, more opaque glass
-    glassBorder: 'rgba(255,255,255,0.1)',
-    glassHighlight: 'rgba(255,255,255,0.15)',
-
-    // UI Elements
-    tint: AppleBlue,
-    tabIconDefault: '#8E8E93',
-    tabIconSelected: AppleBlue,
-    separator: 'rgba(255,255,255,0.1)',
-
-    // Cards
-    cardBackground: '#1C1C1E',
-    cardShadow: 'rgba(0,0,0,0.3)',
-
-    // Semantic
-    success: AppleGreen,
-    warning: AppleOrange,
-    error: AppleRed,
-  },
-  dark: {
-    // Backgrounds
-    background: '#000000', // Deep Black
-    backgroundSecondary: '#1C1C1E', // iOS System Gray 6
-    backgroundTertiary: '#2C2C2E',
-
-    // Text
-    text: '#FFFFFF',
-    textSecondary: 'rgba(255,255,255,0.6)',
-    textTertiary: 'rgba(255,255,255,0.4)',
-
-    // Glass Effect (VisionOS Style)
-    glass: 'rgba(28, 28, 30, 0.6)', // Darker, more opaque glass
-    glassBorder: 'rgba(255,255,255,0.1)',
-    glassHighlight: 'rgba(255,255,255,0.15)',
-
-    // UI Elements
-    tint: AppleBlue,
-    tabIconDefault: '#8E8E93',
-    tabIconSelected: AppleBlue,
-    separator: 'rgba(255,255,255,0.1)',
-
-    // Cards
-    cardBackground: 'rgba(28,28,30,0.8)',
-    cardShadow: 'rgba(0,0,0,0.3)',
-
-    // Semantic
-    success: AppleGreen,
-    warning: AppleOrange,
-    error: AppleRed,
-  },
+  light: scheme,
+  dark: scheme,
 };
 
-// Typography Scale (following Apple HIG)
+// ─── Typography Scale (Apple HIG) ────────────────────────────────────────────
 export const Typography = {
   largeTitle: {
     fontSize: 34,
@@ -178,9 +175,24 @@ export const Typography = {
     letterSpacing: 0.07,
     lineHeight: 13,
   },
+  // Number display variants
+  mono: {
+    fontSize: 17,
+    fontWeight: '500' as const,
+    fontVariant: ['tabular-nums'] as any,
+    letterSpacing: -0.5,
+    lineHeight: 22,
+  },
+  monoLarge: {
+    fontSize: 44,
+    fontWeight: '700' as const,
+    fontVariant: ['tabular-nums'] as any,
+    letterSpacing: -2,
+    lineHeight: 52,
+  },
 };
 
-// Spacing Scale
+// ─── Spacing Scale (8pt grid) ─────────────────────────────────────────────────
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -190,44 +202,43 @@ export const Spacing = {
   xxl: 48,
 };
 
-// Border Radius
+// ─── Border Radius (locked system — 16 / 20 / 28 only) ───────────────────────
 export const BorderRadius = {
-  sm: 8,
-  md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 28,
+  sm: 8,   // Internal elements only (chips, badges)
+  md: 16,  // Standard cards
+  lg: 20,  // Elevated cards
+  xl: 28,  // Hero cards / modals
   full: 9999,
 };
 
-// Shadows
+// ─── Shadows ──────────────────────────────────────────────────────────────────
 export const Shadows = {
   sm: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 2,
   },
   md: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 12,
+    elevation: 6,
   },
   lg: {
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.35,
+    shadowRadius: 24,
+    elevation: 12,
   },
   glow: (color: string) => ({
     shadowColor: color,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 10,
   }),
 };

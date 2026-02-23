@@ -47,8 +47,11 @@ export default function TabLayout() {
           paddingTop: 10,
           ...Platform.select({
             web: {
-              backdropFilter: 'blur(20px)',
-              backgroundColor: 'rgba(28,28,30,0.9)',
+              backdropFilter: 'blur(24px) saturate(160%)',
+              WebkitBackdropFilter: 'blur(24px) saturate(160%)',
+              backgroundColor: 'rgba(7,10,15,0.85)',
+              position: 'sticky',
+              bottom: 0,
             } as any,
           }),
         },
