@@ -35,29 +35,31 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.tint,
-        tabBarInactiveTintColor: colors.tabIconDefault,
+        tabBarActiveTintColor: '#7B61FF',
+        tabBarInactiveTintColor: '#9CA3AF',
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.backgroundSecondary,
-          borderTopColor: colors.separator,
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#E5E7EB',
           borderTopWidth: 0.5,
-          height: Platform.OS === 'ios' ? 88 : 65,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
-          paddingTop: 10,
+          height: Platform.OS === 'ios' ? 88 : 60,
+          paddingBottom: Platform.OS === 'ios' ? 26 : 8,
+          paddingTop: 8,
           ...Platform.select({
             web: {
-              backdropFilter: 'blur(24px) saturate(160%)',
-              WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-              backgroundColor: 'rgba(7,10,15,0.85)',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.04)',
               position: 'sticky',
               bottom: 0,
+              height: 62,
+              paddingBottom: 10,
+              paddingTop: 8,
             } as any,
           }),
         },
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: '500',
+          fontWeight: '600',
+          marginTop: 2,
         },
       }}>
 
@@ -105,6 +107,14 @@ export default function TabLayout() {
         }}
       />
 
+      {/* Budgets — hidden from tab bar, accessible via Settings */}
+      <Tabs.Screen
+        name="budgets"
+        options={{
+          href: null,
+        }}
+      />
+
       {/* Settings */}
       <Tabs.Screen
         name="settings"
@@ -132,21 +142,21 @@ const styles = StyleSheet.create({
     // Subtle scale effect for focused icons
   },
   addButton: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#007AFF',
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: '#7B61FF',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Platform.OS === 'ios' ? 20 : 25,
-    shadowColor: '#007AFF',
+    marginBottom: Platform.OS === 'ios' ? 22 : 22,
+    shadowColor: '#7B61FF',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
     elevation: 8,
   },
   addButtonFocused: {
-    backgroundColor: '#0056B3',
+    backgroundColor: '#6046FF',
     transform: [{ scale: 0.95 }],
   },
 });

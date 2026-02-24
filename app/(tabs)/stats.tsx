@@ -1,3 +1,8 @@
+/**
+ * Statistics Screen — Premium financial intelligence dashboard
+ * Features: Interactive balance timeline curve, tap-to-select donut,
+ * financial insight engine, month-over-month KPIs with delta badges
+ */
 import React, { useMemo, useState, useCallback } from 'react';
 import {
     StyleSheet,
@@ -9,359 +14,461 @@ import {
     Pressable,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import Colors, { Typography, Spacing, SemanticColors } from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import Colors, { Typography, Spacing, SemanticColors, BorderRadius, Shadows } from '@/constants/Colors';
 import { GlassCard } from '@/components/GlassCard';
-import { DonutChart } from '@/components/DonutChart';
-import { LineChart } from '@/components/LineChart';
+import { BalanceTimeline, TimelinePoint } from '@/components/BalanceTimeline';
+import { InteractiveDonut, DonutSegment } from '@/components/InteractiveDonut';
 import { useAuth } from '@/contexts/AuthContext';
-import { useMonthlyStats, useCategoryBreakdown } from '@/hooks/useSupabase';
+import { useTransactions, useMonthlyStats } from '@/hooks/useSupabase';
 
 // ─── Month Selector ───────────────────────────────────────────────────────────
-interface MonthSelectorProps {
-    currentOffset: number; // 0 = current month, -1 = last month, etc.
-    onChange: (offset: number) => void;
-}
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
 
-const MONTH_NAMES = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-
-function MonthSelector({ currentOffset, onChange }: MonthSelectorProps) {
-    const colorScheme = useColorScheme() ?? 'dark';
-    const colors = Colors[colorScheme];
-
-    const displayDate = useMemo(() => {
+function MonthSelector({ offset, onChange }: { offset: number; onChange: (o: number) => void }) {
+    const colors = Colors.light;
+    const label = useMemo(() => {
         const d = new Date();
-        d.setMonth(d.getMonth() + currentOffset);
-        return `${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
-    }, [currentOffset]);
-
-    const isCurrentMonth = currentOffset === 0;
+        d.setMonth(d.getMonth() + offset);
+        return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+    }, [offset]);
 
     return (
-        <View style={monthStyles.row}>
-            <Pressable
-                style={monthStyles.arrow}
-                onPress={() => onChange(currentOffset - 1)}
-            >
-                <Text style={[monthStyles.arrowText, { color: colors.tint }]}>‹</Text>
+        <View style={msStyles.row}>
+            <Pressable style={msStyles.btn} onPress={() => onChange(offset - 1)}>
+                <Text style={[msStyles.arrow, { color: colors.tint }]}>‹</Text>
             </Pressable>
-
-            <Pressable
-                onPress={() => !isCurrentMonth && onChange(0)}
-                style={monthStyles.labelContainer}
-            >
-                <Text style={[monthStyles.label, { color: colors.text }]}>{displayDate}</Text>
-                {!isCurrentMonth && (
-                    <Text style={[monthStyles.resetHint, { color: colors.tint }]}>→ Heute</Text>
+            <Pressable onPress={() => offset !== 0 && onChange(0)}>
+                <Text style={[msStyles.label, { color: colors.text }]}>{label}</Text>
+                {offset !== 0 && (
+                    <Text style={[Typography.caption2, { color: colors.tint, textAlign: 'center' }]}>Heute</Text>
                 )}
             </Pressable>
-
             <Pressable
-                style={[monthStyles.arrow, { opacity: isCurrentMonth ? 0.3 : 1 }]}
-                onPress={() => !isCurrentMonth && onChange(currentOffset + 1)}
-                disabled={isCurrentMonth}
+                style={[msStyles.btn, { opacity: offset >= 0 ? 0.3 : 1 }]}
+                onPress={() => offset < 0 && onChange(offset + 1)}
+                disabled={offset >= 0}
             >
-                <Text style={[monthStyles.arrowText, { color: colors.tint }]}>›</Text>
+                <Text style={[msStyles.arrow, { color: colors.tint }]}>›</Text>
             </Pressable>
         </View>
     );
 }
 
-const monthStyles = StyleSheet.create({
-    row: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: Spacing.lg,
-    },
-    arrow: {
-        width: 44,
-        height: 44,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    arrowText: { fontSize: 28, fontWeight: '300' },
-    labelContainer: {
-        alignItems: 'center',
-        gap: 2,
-    },
-    label: {
-        fontSize: 20,
-        fontWeight: '700',
-        letterSpacing: -0.3,
-    },
-    resetHint: {
-        fontSize: 11,
-        fontWeight: '600',
-    },
+const msStyles = StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md },
+    btn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+    arrow: { fontSize: 28, fontWeight: '300' },
+    label: { fontSize: 18, fontWeight: '700', textAlign: 'center' },
 });
 
 // ─── Delta Badge ──────────────────────────────────────────────────────────────
-function DeltaBadge({ delta, unit = '%' }: { delta: number; unit?: string }) {
-    if (delta === 0 || isNaN(delta)) return null;
-    const isPositive = delta > 0;
-    const bg = isPositive ? 'rgba(255,59,48,0.15)' : 'rgba(52,199,89,0.15)';
-    const fg = isPositive ? SemanticColors.expense : SemanticColors.income;
-    const sign = isPositive ? '▲' : '▼';
-
+function DeltaBadge({ delta, invert = false }: { delta: number; invert?: boolean }) {
+    if (!delta || isNaN(delta)) return null;
+    const up = delta > 0;
+    const isGood = invert ? !up : up;
     return (
-        <View style={[deltaStyles.badge, { backgroundColor: bg }]}>
-            <Text style={[deltaStyles.text, { color: fg }]}>
-                {sign} {Math.abs(delta).toFixed(1)}{unit}
+        <View style={[dStyles.badge, { backgroundColor: isGood ? 'rgba(34,197,94,0.10)' : 'rgba(239,68,68,0.10)' }]}>
+            <Text style={[dStyles.txt, { color: isGood ? SemanticColors.income : SemanticColors.expense }]}>
+                {up ? '▲' : '▼'} {Math.abs(delta).toFixed(1)}%
             </Text>
         </View>
     );
 }
-
-const deltaStyles = StyleSheet.create({
-    badge: {
-        borderRadius: 6,
-        paddingHorizontal: 7,
-        paddingVertical: 3,
-        marginTop: 4,
-        alignSelf: 'flex-start',
-    },
-    text: { fontSize: 11, fontWeight: '700', letterSpacing: 0.2 },
+const dStyles = StyleSheet.create({
+    badge: { borderRadius: 6, paddingHorizontal: 7, paddingVertical: 3, alignSelf: 'flex-start' },
+    txt: { fontSize: 11, fontWeight: '700' },
 });
+
+// ─── KPI Metric Card ──────────────────────────────────────────────────────────
+function KPICard({
+    label, value, delta, invertDelta, sub, accent,
+}: { label: string; value: string; delta?: number; invertDelta?: boolean; sub?: string; accent?: string }) {
+    const colors = Colors.light;
+    return (
+        <View style={[kpiStyles.card, kpiStyles.shadow]}>
+            <Text style={[Typography.caption1, { color: colors.textSecondary, fontWeight: '700', letterSpacing: 0.8 }]}>
+                {label.toUpperCase()}
+            </Text>
+            <Text style={[kpiStyles.val, { color: accent ?? colors.text }]}>{value}</Text>
+            {delta !== undefined && <DeltaBadge delta={delta} invert={invertDelta} />}
+            {sub && <Text style={[Typography.caption2, { color: colors.textTertiary, marginTop: 4 }]}>{sub}</Text>}
+        </View>
+    );
+}
+const kpiStyles = StyleSheet.create({
+    card: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        borderRadius: BorderRadius.lg,
+        padding: 16,
+        minHeight: 90,
+    },
+    shadow: {
+        ...Shadows.md,
+        ...Platform.select({ web: { boxShadow: '0 4px 16px rgba(0,0,0,0.06)' } as any }),
+    },
+    val: { fontSize: 22, fontWeight: '700', letterSpacing: -0.5, marginVertical: 6 },
+});
+
+// ─── Insight Card ─────────────────────────────────────────────────────────────
+function InsightCard({
+    emoji, title, body, accent,
+}: { emoji: string; title: string; body: string; accent?: string }) {
+    const colors = Colors.light;
+    return (
+        <View style={[insStyles.card, insStyles.shadow]}>
+            <View style={[insStyles.icon, { backgroundColor: `${accent ?? colors.tint}12` }]}>
+                <Text style={{ fontSize: 22 }}>{emoji}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+                <Text style={[Typography.headline, { color: colors.text }]}>{title}</Text>
+                <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 3, lineHeight: 18 }]}>{body}</Text>
+            </View>
+        </View>
+    );
+}
+const insStyles = StyleSheet.create({
+    card: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: BorderRadius.lg,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        gap: 14,
+    },
+    shadow: {
+        ...Shadows.md,
+        ...Platform.select({ web: { boxShadow: '0 4px 16px rgba(0,0,0,0.06)' } as any }),
+    },
+    icon: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+});
+
+// ─── Balance timeline computation ─────────────────────────────────────────────
+function computeTimeline(
+    rawTransactions: any[],
+    year: number,
+    month: number           // 0-indexed
+): TimelinePoint[] {
+    const startOfMonth = new Date(year, month, 1);
+    const endOfMonth = new Date(year, month + 1, 0);
+
+    // Filter to this month, sort chronologically
+    const monthly = rawTransactions
+        .filter(t => {
+            const d = new Date(t.transaction_date);
+            return d >= startOfMonth && d <= endOfMonth;
+        })
+        .sort((a, b) => new Date(a.transaction_date).getTime() - new Date(b.transaction_date).getTime());
+
+    if (monthly.length === 0) return [];
+
+    // Build day-by-day cumulative balances
+    let running = 0;
+    const byDate: Record<string, number> = {};
+    for (const t of monthly) {
+        const delta = t.type === 'income' ? t.amount : -t.amount;
+        running += delta;
+        byDate[t.transaction_date] = running;
+    }
+
+    // Expand to every day in the month
+    const points: TimelinePoint[] = [];
+    let lastKnown = 0;
+    const today = new Date();
+    for (let day = 1; day <= endOfMonth.getDate(); day++) {
+        const d = new Date(year, month, day);
+        if (d > today) break;
+        const iso = d.toISOString().split('T')[0];
+        if (byDate[iso] !== undefined) lastKnown = byDate[iso];
+        points.push({
+            date: iso,
+            label: `${day} ${MONTHS[month]}`,
+            balance: lastKnown,
+        });
+    }
+
+    // Downsample if too many points (keep at most 30 for perf)
+    if (points.length > 30) {
+        const step = Math.ceil(points.length / 30);
+        return points.filter((_, i) => i % step === 0 || i === points.length - 1);
+    }
+    return points;
+}
+
+// ─── Insights Engine ──────────────────────────────────────────────────────────
+interface Insight {
+    emoji: string;
+    title: string;
+    body: string;
+    accent?: string;
+}
+
+function buildInsights(
+    income: number,
+    expenses: number,
+    incomeDelta: number,
+    expenseDelta: number,
+    topExpCat: string | null,
+    topExpAmt: number,
+    biggestTx: { title: string; amount: number } | null,
+): Insight[] {
+    const insights: Insight[] = [];
+    const net = income - expenses;
+    const savingsRate = income > 0 ? (net / income) * 100 : 0;
+
+    if (savingsRate >= 20) insights.push({ emoji: '🏆', title: `Sparquote ${savingsRate.toFixed(0)}%`, body: 'Außergewöhnlich! Du liegst weit über dem empfohlenen Wert von 15%.', accent: SemanticColors.income });
+    else if (savingsRate >= 15) insights.push({ emoji: '🎯', title: `Sparquote ${savingsRate.toFixed(0)}%`, body: 'Gut! Über dem Empfehlungswert. Weiter so.', accent: SemanticColors.income });
+    else if (savingsRate > 0) insights.push({ emoji: '💪', title: `Sparquote ${savingsRate.toFixed(0)}%`, body: 'Versuch 15% zu sparen. Kleine Einsparungen machen den Unterschied.', accent: '#F59E0B' });
+    else if (savingsRate < 0) insights.push({ emoji: '⚠️', title: 'Ausgaben über Einnahmen', body: 'Deine Ausgaben übersteigen das Einkommen diesen Monat.', accent: SemanticColors.expense });
+
+    if (expenseDelta > 15) insights.push({ emoji: '📈', title: `Ausgaben +${expenseDelta.toFixed(0)}% ggü. Vormonat`, body: topExpCat ? `${topExpCat} ist deine größte Kategorie (€${topExpAmt.toLocaleString('de-DE')}).` : 'Deutlich höher als letzten Monat.', accent: SemanticColors.expense });
+    else if (expenseDelta < -10) insights.push({ emoji: '✂️', title: `Ausgaben ${expenseDelta.toFixed(0)}% gesunken`, body: 'Gut eingespart im Vergleich zum Vormonat.', accent: SemanticColors.income });
+
+    if (biggestTx) insights.push({ emoji: '💰', title: `Größte Transaktion: €${biggestTx.amount.toLocaleString('de-DE')}`, body: biggestTx.title, accent: '#7B61FF' });
+
+    if (incomeDelta > 5) insights.push({ emoji: '🚀', title: `Einnahmen +${incomeDelta.toFixed(0)}%`, body: 'Dein Einkommen ist gewachsen.', accent: SemanticColors.income });
+
+    return insights.slice(0, 3);
+}
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function StatsScreen() {
-    const colorScheme = useColorScheme() ?? 'dark';
-    const colors = Colors[colorScheme];
+    const colors = Colors.light;
     const { user } = useAuth();
-
-    // Month selection state (0 = current, negative = past)
     const [monthOffset, setMonthOffset] = useState(0);
-    const handleMonthChange = useCallback((offset: number) => {
-        setMonthOffset(offset);
-    }, []);
+    const [donutMode, setDonutMode] = useState<'expense' | 'income'>('expense');
+    const [selectedSegmentId, setSelectedSegmentId] = useState<string | null>(null);
+    const handleMonthChange = useCallback((o: number) => setMonthOffset(o), []);
 
-    // Always load last 7 months so we can compare current vs previous
-    const { stats, loading: statsLoading } = useMonthlyStats(user?.id, 7);
-    const { breakdown, loading: breakdownLoading } = useCategoryBreakdown(user?.id);
+    const { transactions, loading: txLoading } = useTransactions(user?.id);
+    const { stats, loading: statsLoading } = useMonthlyStats(user?.id, 12);
 
-    // Resolve the month index for the selected offset
-    const selectedIndex = useMemo(() => {
-        const latest = stats.length - 1;
-        const idx = latest + monthOffset;
-        return Math.max(0, Math.min(idx, latest));
-    }, [stats, monthOffset]);
+    // ─── Current/previous month index ──────────────────────────────────────
+    const selectedIndex = useMemo(() =>
+        Math.max(0, Math.min((stats.length - 1) + monthOffset, stats.length - 1)),
+        [stats, monthOffset]);
 
-    const currentMonth = stats[selectedIndex];
-    const previousMonth = stats[selectedIndex - 1];
+    const current = stats[selectedIndex];
+    const previous = stats[selectedIndex - 1];
 
-    // Chart data — show up to selected month
-    const incomeData = useMemo(() =>
-        stats.slice(0, selectedIndex + 1).map(s => ({
-            label: new Date(s.month + '-01').toLocaleDateString('de-DE', { month: 'short' }),
-            value: s.income,
-        })), [stats, selectedIndex]);
+    // ─── KPI values ────────────────────────────────────────────────────────
+    const income = current?.income ?? 0;
+    const expenses = current?.expenses ?? 0;
+    const net = current?.net_savings ?? (income - expenses);
+    const savingsRate = income > 0 ? (net / income) * 100 : 0;
+    const incomeDelta = previous?.income > 0 ? ((income - previous.income) / previous.income) * 100 : 0;
+    const expenseDelta = previous?.expenses > 0 ? ((expenses - previous.expenses) / previous.expenses) * 100 : 0;
 
-    const expenseData = useMemo(() =>
-        stats.slice(0, selectedIndex + 1).map(s => ({
-            label: new Date(s.month + '-01').toLocaleDateString('de-DE', { month: 'short' }),
-            value: s.expenses,
-        })), [stats, selectedIndex]);
+    // ─── Current selected month date ────────────────────────────────────────
+    const selectedDate = useMemo(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + monthOffset);
+        return { year: d.getFullYear(), month: d.getMonth() };
+    }, [monthOffset]);
 
-    const categoryData = useMemo(() =>
-        breakdown.map(b => ({
-            id: b.category_id,
-            name: b.category_name,
-            amount: b.total_amount,
-            color: b.category_color || '#8E8E93',
-        })), [breakdown]);
+    // ─── Balance timeline data ──────────────────────────────────────────────
+    const timelineData = useMemo((): TimelinePoint[] => {
+        if (!transactions.length) return [];
+        return computeTimeline(transactions, selectedDate.year, selectedDate.month);
+    }, [transactions, selectedDate.year, selectedDate.month]);
 
-    const totalIncome = currentMonth?.income ?? 0;
-    const totalExpenses = currentMonth?.expenses ?? 0;
-    const netSavings = currentMonth?.net_savings ?? (totalIncome - totalExpenses);
+    // ─── Donut chart data — month-scoped, computed from transactions ────────
+    const monthTransactions = useMemo(() =>
+        transactions.filter(t => {
+            const d = new Date(t.transaction_date);
+            return d.getFullYear() === selectedDate.year && d.getMonth() === selectedDate.month;
+        }), [transactions, selectedDate.year, selectedDate.month]);
 
-    const incomeDelta = previousMonth && previousMonth.income > 0
-        ? ((totalIncome - previousMonth.income) / previousMonth.income) * 100
-        : 0;
-    const expenseDelta = previousMonth && previousMonth.expenses > 0
-        ? ((totalExpenses - previousMonth.expenses) / previousMonth.expenses) * 100
-        : 0;
+    const expenseSegments = useMemo((): DonutSegment[] => {
+        const byCat: Record<string, { name: string; color: string; amount: number }> = {};
+        for (const t of monthTransactions.filter(tx => tx.type === 'expense')) {
+            const cat = (t as any).categories;
+            const catId = t.category_id || 'other';
+            if (!byCat[catId]) byCat[catId] = { name: cat?.name ?? 'Sonstiges', color: cat?.color ?? '#9CA3AF', amount: 0 };
+            byCat[catId].amount += t.amount;
+        }
+        return Object.entries(byCat)
+            .filter(([, v]) => v.amount > 0)
+            .map(([id, v]) => ({ id, ...v }))
+            .sort((a, b) => b.amount - a.amount);
+    }, [monthTransactions]);
 
-    const savingsRate = totalIncome > 0
-        ? ((netSavings / totalIncome) * 100)
-        : 0;
+    const incomeSegments = useMemo((): DonutSegment[] => {
+        const byCat: Record<string, { name: string; color: string; amount: number }> = {};
+        for (const t of monthTransactions.filter(tx => tx.type === 'income')) {
+            const cat = (t as any).categories;
+            const catId = t.category_id || 'other';
+            if (!byCat[catId]) byCat[catId] = { name: cat?.name ?? 'Sonstiges', color: cat?.color ?? '#7B61FF', amount: 0 };
+            byCat[catId].amount += t.amount;
+        }
+        return Object.entries(byCat)
+            .filter(([, v]) => v.amount > 0)
+            .map(([id, v]) => ({ id, ...v }))
+            .sort((a, b) => b.amount - a.amount);
+    }, [monthTransactions]);
 
+    const activeSegments = donutMode === 'expense' ? expenseSegments : incomeSegments;
+
+    // ─── Insights data ─────────────────────────────────────────────────────
+    const topExpense = expenseSegments[0] ?? null;
+
+    const biggestTx = useMemo(() => {
+        const d = new Date();
+        d.setMonth(d.getMonth() + monthOffset);
+        const yr = d.getFullYear();
+        const mo = d.getMonth();
+        const monthly = transactions.filter(t => {
+            const td = new Date(t.transaction_date);
+            return td.getFullYear() === yr && td.getMonth() === mo && t.type === 'expense';
+        });
+        if (!monthly.length) return null;
+        const top = monthly.reduce((a, b) => a.amount > b.amount ? a : b);
+        return { title: top.description || 'Transaktion', amount: top.amount };
+    }, [transactions, monthOffset]);
+
+    const insights = useMemo(() =>
+        buildInsights(income, expenses, incomeDelta, expenseDelta, topExpense?.name ?? null, topExpense?.amount ?? 0, biggestTx),
+        [income, expenses, incomeDelta, expenseDelta, topExpense, biggestTx]);
+
+    const isLoading = txLoading || statsLoading;
+
+    // ─── Render ────────────────────────────────────────────────────────────
     return (
         <View style={[styles.container, { backgroundColor: colors.background }]}>
             <ScrollView
-                style={styles.scrollView}
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                {/* Page Title */}
+                {/* Page title */}
                 <Animated.View entering={FadeInDown.delay(50).springify()}>
                     <Text style={[styles.pageTitle, { color: colors.text }]}>Statistik</Text>
-                    <Text style={[Typography.subhead, { color: colors.textSecondary, marginBottom: Spacing.lg }]}>
-                        Deine Finanzübersicht
-                    </Text>
                 </Animated.View>
 
-                {/* Month Selector */}
-                <Animated.View entering={FadeInDown.delay(100).springify()}>
-                    <MonthSelector currentOffset={monthOffset} onChange={handleMonthChange} />
+                {/* Month selector */}
+                <Animated.View entering={FadeInDown.delay(90).springify()}>
+                    <MonthSelector offset={monthOffset} onChange={handleMonthChange} />
                 </Animated.View>
 
-                {/* KPI Summary Row */}
-                <Animated.View entering={FadeInDown.delay(150).springify()}>
-                    <View style={styles.kpiRow}>
-                        {/* Income KPI */}
-                        <GlassCard style={[styles.kpiCard, { marginRight: 6 }]} elevation="base">
-                            <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Einnahmen</Text>
-                            <Text style={[styles.kpiValue, { color: SemanticColors.income }]}>
-                                €{totalIncome.toLocaleString('de-DE')}
-                            </Text>
-                            <DeltaBadge delta={incomeDelta} />
-                        </GlassCard>
-
-                        {/* Expense KPI */}
-                        <GlassCard style={[styles.kpiCard, { marginLeft: 6 }]} elevation="base">
-                            <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Ausgaben</Text>
-                            <Text style={[styles.kpiValue, { color: SemanticColors.expense }]}>
-                                €{totalExpenses.toLocaleString('de-DE')}
-                            </Text>
-                            <DeltaBadge delta={expenseDelta} />
-                        </GlassCard>
+                {/* ─── FEATURE 1: Balance Timeline ─────────────────────────── */}
+                <Animated.View entering={FadeInDown.delay(130).springify()}>
+                    <View style={[styles.section, styles.cardShadow]}>
+                        <Text style={[styles.sectionTag, { color: colors.textSecondary }]}>BALANCE VERLAUF</Text>
+                        {isLoading ? (
+                            <View style={styles.loader}><ActivityIndicator color={colors.tint} /></View>
+                        ) : timelineData.length < 2 ? (
+                            <View style={styles.loader}>
+                                <Text style={{ fontSize: 28 }}>📊</Text>
+                                <Text style={[Typography.subhead, { color: colors.textSecondary, marginTop: 8 }]}>
+                                    Noch zu wenig Daten
+                                </Text>
+                            </View>
+                        ) : (
+                            <BalanceTimeline
+                                data={timelineData}
+                                height={200}
+                                positiveColor="#7B61FF"
+                                negativeColor="#EF4444"
+                            />
+                        )}
                     </View>
+                </Animated.View>
 
-                    {/* Savings Rate KPI */}
-                    <GlassCard style={styles.savingsCard} elevation="elevated">
-                        <View style={styles.savingsRow}>
-                            <View>
-                                <Text style={[styles.kpiLabel, { color: colors.textSecondary }]}>Sparquote</Text>
-                                <Text style={[styles.kpiValue, {
-                                    color: savingsRate >= 15 ? SemanticColors.income : SemanticColors.warning,
-                                    fontSize: 28,
-                                }]}>
-                                    {savingsRate.toFixed(1)}%
-                                </Text>
-                            </View>
-                            <View style={styles.savingsPill}>
-                                <Text style={styles.savingsPillText}>
-                                    {savingsRate >= 15 ? '🎯 Ziel erreicht' : '💪 Ziel: 15%'}
-                                </Text>
-                            </View>
+                {/* ─── KPI Cards ─────────────────────────────────────────── */}
+                <Animated.View entering={FadeInDown.delay(190).springify()}>
+                    {/* Net savings hero */}
+                    <View style={[styles.heroCard, styles.cardShadow]}>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.sectionTag, { color: colors.textSecondary }]}>NETTO GESPART</Text>
+                            <Text style={[styles.heroVal, { color: net >= 0 ? colors.tint : SemanticColors.expense }]}>
+                                €{net.toLocaleString('de-DE')}
+                            </Text>
                         </View>
-                        <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 4 }]}>
-                            Ersparnis: €{netSavings.toLocaleString('de-DE')}
-                        </Text>
-                    </GlassCard>
+                        <View style={[styles.savingsPill, {
+                            backgroundColor: savingsRate >= 15 ? 'rgba(34,197,94,0.10)' : 'rgba(245,158,11,0.10)',
+                        }]}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: savingsRate >= 15 ? SemanticColors.income : '#F59E0B' }}>
+                                {savingsRate.toFixed(0)}% {'\n'}Sparquote
+                            </Text>
+                        </View>
+                    </View>
                 </Animated.View>
 
-                {/* Income Trend */}
-                <Animated.View entering={FadeInDown.delay(250).springify()}>
-                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>EINNAHMEN TREND</Text>
-                    <GlassCard elevation="base">
-                        {statsLoading ? (
-                            <View style={styles.loadingBox}>
-                                <ActivityIndicator size="small" color={SemanticColors.income} />
-                            </View>
-                        ) : incomeData.length === 0 ? (
-                            <View style={styles.emptyBox}>
-                                <Text style={[Typography.body, { color: colors.textSecondary }]}>Keine Daten</Text>
-                            </View>
-                        ) : (
-                            <LineChart
-                                data={incomeData}
-                                height={160}
-                                lineColor={SemanticColors.income}
-                                gradientColors={[SemanticColors.income, 'transparent']}
-                            />
-                        )}
-                    </GlassCard>
+                {/* Income / Expense row */}
+                <Animated.View entering={FadeInDown.delay(230).springify()}>
+                    <View style={styles.kpiRow}>
+                        <KPICard
+                            label="Einnahmen"
+                            value={`€${income.toLocaleString('de-DE')}`}
+                            delta={incomeDelta}
+                            accent={SemanticColors.income}
+                        />
+                        <View style={{ width: 12 }} />
+                        <KPICard
+                            label="Ausgaben"
+                            value={`€${expenses.toLocaleString('de-DE')}`}
+                            delta={expenseDelta}
+                            invertDelta
+                            accent={SemanticColors.expense}
+                        />
+                    </View>
                 </Animated.View>
 
-                {/* Expense Trend */}
-                <Animated.View entering={FadeInDown.delay(320).springify()}>
-                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>AUSGABEN TREND</Text>
-                    <GlassCard elevation="base">
-                        {statsLoading ? (
-                            <View style={styles.loadingBox}>
-                                <ActivityIndicator size="small" color={SemanticColors.expense} />
-                            </View>
-                        ) : expenseData.length === 0 ? (
-                            <View style={styles.emptyBox}>
-                                <Text style={[Typography.body, { color: colors.textSecondary }]}>Keine Daten</Text>
-                            </View>
-                        ) : (
-                            <LineChart
-                                data={expenseData}
-                                height={160}
-                                lineColor={SemanticColors.expense}
-                                gradientColors={[SemanticColors.expense, 'transparent']}
-                            />
-                        )}
-                    </GlassCard>
-                </Animated.View>
-
-                {/* Category Breakdown */}
-                <Animated.View entering={FadeInDown.delay(390).springify()}>
-                    <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>NACH KATEGORIE</Text>
-                    <GlassCard elevation="base">
-                        {breakdownLoading ? (
-                            <View style={styles.loadingBox}>
-                                <ActivityIndicator size="small" color={colors.tint} />
-                            </View>
-                        ) : categoryData.length === 0 ? (
-                            <View style={styles.emptyBox}>
-                                <Text style={[Typography.body, { color: colors.textSecondary }]}>
-                                    Noch keine Ausgaben
+                {/* ─── FEATURE 2: Interactive Donut ───────────────────────── */}
+                <Animated.View entering={FadeInDown.delay(290).springify()}>
+                    <View style={[styles.section, styles.cardShadow]}>
+                        <InteractiveDonut
+                            data={activeSegments}
+                            mode={donutMode}
+                            onModeChange={setDonutMode}
+                            selectedId={selectedSegmentId}
+                            onSelect={setSelectedSegmentId}
+                        />
+                        {activeSegments.length === 0 && !isLoading && (
+                            <View style={styles.loader}>
+                                <Text style={[Typography.subhead, { color: colors.textSecondary }]}>
+                                    Keine {donutMode === 'expense' ? 'Ausgaben' : 'Einnahmen'}
                                 </Text>
                             </View>
-                        ) : (
-                            <DonutChart
-                                data={categoryData}
-                                size={200}
-                                strokeWidth={24}
-                                centerLabel={`€${Math.round(totalExpenses).toLocaleString('de-DE')}`}
-                                centerSubLabel="GESAMT"
-                            />
                         )}
-                    </GlassCard>
+                    </View>
                 </Animated.View>
 
-                {/* Insights */}
-                {currentMonth && (
-                    <Animated.View entering={FadeInDown.delay(460).springify()}>
-                        <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>INSIGHTS</Text>
+                {/* ─── Top KPI details row ─────────────────────────────────── */}
+                {expenseSegments.length > 0 && (
+                    <Animated.View entering={FadeInDown.delay(330).springify()}>
+                        <View style={styles.kpiRow}>
+                            <KPICard
+                                label="Größte Ausgabe"
+                                value={`€${(expenseSegments[0]?.amount ?? 0).toLocaleString('de-DE')}`}
+                                sub={expenseSegments[0]?.name}
+                                accent="#F59E0B"
+                            />
+                            <View style={{ width: 12 }} />
+                            <KPICard
+                                label="Kategorien"
+                                value={`${expenseSegments.length}`}
+                                sub="mit Ausgaben"
+                                accent="#7B61FF"
+                            />
+                        </View>
+                    </Animated.View>
+                )}
 
-                        {savingsRate > 0 && (
-                            <GlassCard style={styles.insightCard} elevation="base">
-                                <View style={styles.insightIconWrap}>
-                                    <Text style={{ fontSize: 22 }}>{savingsRate >= 15 ? '🎉' : '💪'}</Text>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[Typography.headline, { color: colors.text }]}>
-                                        Sparquote: {savingsRate.toFixed(0)}%
-                                    </Text>
-                                    <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 3 }]}>
-                                        {savingsRate >= 15
-                                            ? 'Super! Du liegst über dem Empfehlungswert von 15%.'
-                                            : 'Versuch, mindestens 15% deines Einkommens zu sparen.'}
-                                    </Text>
-                                </View>
-                            </GlassCard>
-                        )}
-
-                        {previousMonth && currentMonth.expenses > previousMonth.expenses && (
-                            <GlassCard style={[styles.insightCard, { marginTop: Spacing.sm }]} elevation="base">
-                                <View style={styles.insightIconWrap}>
-                                    <Text style={{ fontSize: 22 }}>⚠️</Text>
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={[Typography.headline, { color: colors.text }]}>
-                                        Ausgaben +{expenseDelta.toFixed(0)}%
-                                    </Text>
-                                    <Text style={[Typography.caption1, { color: colors.textSecondary, marginTop: 3 }]}>
-                                        Mehr als letzten Monat (€{previousMonth.expenses.toLocaleString('de-DE')}).
-                                    </Text>
-                                </View>
-                            </GlassCard>
-                        )}
+                {/* ─── Financial Insights ─────────────────────────────────── */}
+                {insights.length > 0 && (
+                    <Animated.View entering={FadeInDown.delay(370).springify()}>
+                        <Text style={[styles.sectionTag, { color: colors.textSecondary, marginBottom: Spacing.sm }]}>INSIGHTS</Text>
+                        <View style={{ gap: 10 }}>
+                            {insights.map((ins, i) => (
+                                <InsightCard
+                                    key={i}
+                                    emoji={ins.emoji}
+                                    title={ins.title}
+                                    body={ins.body}
+                                    accent={ins.accent}
+                                />
+                            ))}
+                        </View>
                     </Animated.View>
                 )}
 
@@ -371,88 +478,58 @@ export default function StatsScreen() {
     );
 }
 
+// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    scrollView: { flex: 1 },
     content: {
         padding: Spacing.md,
         paddingTop: Platform.OS === 'ios' ? 56 : Spacing.xl,
+        gap: Spacing.md,
     },
-    pageTitle: {
-        fontSize: 34,
+    pageTitle: { fontSize: 34, fontWeight: '700', letterSpacing: 0.37, marginBottom: 4 },
+    section: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: BorderRadius.xl,
+        padding: 20,
+    },
+    sectionTag: {
+        fontSize: 10,
         fontWeight: '700',
-        letterSpacing: 0.37,
-        marginBottom: 4,
+        letterSpacing: 1.3,
+        marginBottom: 16,
+    },
+    heroCard: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: BorderRadius.xl,
+        padding: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        flexWrap: 'wrap',
+    },
+    heroVal: {
+        fontSize: 38,
+        fontWeight: '700',
+        letterSpacing: -1.5,
+        marginTop: 6,
+    },
+    savingsPill: {
+        borderRadius: 16,
+        paddingHorizontal: 14,
+        paddingVertical: 10,
+        alignItems: 'center',
     },
     kpiRow: {
         flexDirection: 'row',
-        marginBottom: Spacing.sm,
     },
-    kpiCard: {
-        flex: 1,
-        paddingVertical: Spacing.md,
-    },
-    kpiLabel: {
-        fontSize: 11,
-        fontWeight: '600',
-        textTransform: 'uppercase',
-        letterSpacing: 0.8,
-        marginBottom: 6,
-    },
-    kpiValue: {
-        fontSize: 22,
-        fontWeight: '700',
-        letterSpacing: -0.5,
-    },
-    savingsCard: {
-        marginBottom: Spacing.lg,
-    },
-    savingsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-    },
-    savingsPill: {
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        borderRadius: 20,
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        alignSelf: 'flex-start',
-    },
-    savingsPillText: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 12,
-        fontWeight: '600',
-    },
-    sectionLabel: {
-        fontSize: 11,
-        fontWeight: '700',
-        letterSpacing: 1.2,
-        marginBottom: Spacing.sm,
-        marginTop: Spacing.lg,
-    },
-    loadingBox: {
-        height: 120,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyBox: {
+    loader: {
         height: 100,
         alignItems: 'center',
         justifyContent: 'center',
+        gap: 8,
     },
-    insightCard: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-        gap: Spacing.md,
-    },
-    insightIconWrap: {
-        width: 44,
-        height: 44,
-        borderRadius: 22,
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        flexShrink: 0,
+    cardShadow: {
+        ...Shadows.md,
+        ...Platform.select({ web: { boxShadow: '0 4px 20px rgba(0,0,0,0.06)' } as any }),
     },
 });

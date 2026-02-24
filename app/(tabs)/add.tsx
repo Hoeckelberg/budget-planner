@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     StyleSheet,
     View,
@@ -44,19 +44,21 @@ export default function AddTransactionScreen() {
     const [description, setDescription] = useState('');
     const [saving, setSaving] = useState(false);
 
-    // Track if form has been initialized to prevent re-initialization on params change
-    const isInitialized = useRef(false);
-
-    // Initialize form data from params if in edit mode (only once)
+    // Re-initialize form whenever we navigate to a different transaction (id changes)
     useEffect(() => {
-        if (isEditMode && !isInitialized.current) {
+        if (isEditMode) {
             setTransactionType((params.type as 'expense' | 'income') || 'expense');
             setAmount(params.amount ? String(params.amount) : '0');
             setSelectedCategory(params.categoryId as string);
             setDescription(params.description as string || '');
-            isInitialized.current = true;
+        } else {
+            // Reset to blank when opening for a new transaction
+            setTransactionType('expense');
+            setAmount('0');
+            setSelectedCategory(null);
+            setDescription('');
         }
-    }, [isEditMode, params.id]); // Only re-run if edit mode changes or transaction ID changes
+    }, [params.id]); // params.id is the discriminator — changes per transaction
 
 
     const buttonScale = useSharedValue(1);

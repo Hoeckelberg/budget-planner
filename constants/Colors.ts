@@ -1,110 +1,135 @@
 /**
- * Budget Planner — VisionOS++ Design System
- * Precision-engineered for premium mobile finance UI
+ * Budget Planner — Light Modern Fintech Design System
+ * Soft, airy, trustworthy — inspired by top iOS finance apps
  */
 
 // ─── Core Palette ────────────────────────────────────────────────────────────
-const Blue = '#007AFF';
-const Green = '#34C759';
-const Red = '#FF3B30';
-const Orange = '#FF9500';
-const Purple = '#AF52DE';
-const Pink = '#FF2D55';
-const Teal = '#5AC8FA';
-const Indigo = '#5856D6';
-const Yellow = '#FFD60A';
+const Purple = '#7B61FF';   // Primary accent
+const Coral = '#FF8A65';   // Secondary accent
+const Green = '#22C55E';   // Success / Income
+const Red = '#EF4444';   // Danger / Expense
+const Blue = '#3B82F6';   // Info
+const Amber = '#F59E0B';   // Warning
+
+// Chart gradient pair
+const ChartFrom = '#7B61FF';
+const ChartTo = '#F472B6';   // soft pink
 
 // ─── Semantic Colors ──────────────────────────────────────────────────────────
 export const SemanticColors = {
   income: Green,
   expense: Red,
-  savings: Blue,
-  warning: Orange,
-  investment: Purple,
-  goal: Teal,
+  savings: Purple,
+  warning: Amber,
+  investment: Blue,
+  goal: Coral,
 };
 
-// ─── Category Colors (Charts) ─────────────────────────────────────────────────
+// ─── Category Colors (Charts — all soft, no neon) ────────────────────────────
 export const CategoryColors = {
-  rent: Indigo,
-  groceries: Green,
-  subscriptions: Orange,
-  transport: Blue,
-  dining: Pink,
-  entertainment: Purple,
-  utilities: Teal,
-  health: Red,
-  shopping: Yellow,
-  other: '#8E8E93',
+  rent: '#7B61FF',
+  groceries: '#22C55E',
+  subscriptions: '#F59E0B',
+  transport: '#3B82F6',
+  dining: '#F472B6',
+  entertainment: '#A78BFA',
+  utilities: '#34D399',
+  health: '#EF4444',
+  shopping: '#FB923C',
+  other: '#9CA3AF',
 };
 
 // ─── Gradients ────────────────────────────────────────────────────────────────
 export const Gradients = {
-  primary: [Blue, Indigo] as [string, string],
-  success: [Green, '#30D158'] as [string, string],
-  premium: [Yellow, Orange] as [string, string],
-  expense: [Red, '#FF6961'] as [string, string],
-  glass: ['rgba(255,255,255,0.12)', 'rgba(255,255,255,0.04)'] as [string, string],
-  dark: ['#070A0F', '#0D1117'] as [string, string],
+  primary: [ChartFrom, ChartTo] as [string, string],
+  hero: ['#7B61FF', '#A78BFA'] as [string, string],
+  success: [Green, '#4ADE80'] as [string, string],
+  premium: ['#F59E0B', '#FB923C'] as [string, string],
+  expense: [Red, '#F87171'] as [string, string],
+  surface: ['#FFFFFF', '#F6F7FB'] as [string, string],
+  // Legacy dark — deprecated, kept for compat
+  glass: ['rgba(255,255,255,0.9)', 'rgba(255,255,255,0.7)'] as [string, string],
+  dark: ['#F6F7FB', '#FFFFFF'] as [string, string],
 };
 
-// ─── Glass Elevation Tiers ───────────────────────────────────────────────────
-// Three distinct depth layers — background is #070A0F
-export const GlassTiers = {
+// ─── Card Elevation Tiers (soft shadows, no glass blur) ──────────────────────
+// Replaces GlassTiers — now uses white backgrounds + diffuse shadow
+export const CardTiers = {
   base: {
-    background: 'rgba(255,255,255,0.06)',
-    border: 'rgba(255,255,255,0.10)',
-    highlight: 'rgba(255,255,255,0.05)',
+    background: '#FFFFFF',
+    border: 'rgba(0,0,0,0.04)',
+    shadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.04,
+      shadowRadius: 8,
+      elevation: 2,
+    },
   },
   elevated: {
-    background: 'rgba(255,255,255,0.10)',
-    border: 'rgba(255,255,255,0.14)',
-    highlight: 'rgba(255,255,255,0.08)',
+    background: '#FFFFFF',
+    border: 'rgba(0,0,0,0.0)',
+    shadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.07,
+      shadowRadius: 16,
+      elevation: 4,
+    },
   },
   overlay: {
-    background: 'rgba(255,255,255,0.16)',
-    border: 'rgba(255,255,255,0.20)',
-    highlight: 'rgba(255,255,255,0.12)',
+    background: '#FFFFFF',
+    border: 'rgba(0,0,0,0.0)',
+    shadow: {
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 12 },
+      shadowOpacity: 0.10,
+      shadowRadius: 24,
+      elevation: 8,
+    },
   },
 };
 
-// ─── Color Scheme ─────────────────────────────────────────────────────────────
-// Forced dark mode — same token used for both to ensure consistency
-const scheme = {
-  // Depth
-  background: '#070A0F',
-  backgroundSecondary: '#0D1117',
-  backgroundTertiary: '#13181F',
+// ─── Legacy alias (for components still importing GlassTiers) ─────────────────
+export const GlassTiers = CardTiers;
 
-  // Text
-  text: '#FFFFFF',
-  textSecondary: 'rgba(255,255,255,0.55)',
-  textTertiary: 'rgba(255,255,255,0.35)',
+// ─── Light Color Scheme ───────────────────────────────────────────────────────
+const lightScheme = {
+  // Backgrounds
+  background: '#F6F7FB',
+  backgroundSecondary: '#FFFFFF',
+  backgroundTertiary: '#F2F3F7',
 
-  // Glass (legacy — keep for backward compat, maps to 'elevated' tier)
-  glass: GlassTiers.elevated.background,
-  glassBorder: GlassTiers.elevated.border,
-  glassHighlight: GlassTiers.elevated.highlight,
+  // Text hierarchy
+  text: '#1C1C1E',
+  textSecondary: '#6B7280',
+  textTertiary: '#9CA3AF',
+
+  // Glass compat tokens (now map to light values)
+  glass: '#FFFFFF',
+  glassBorder: 'rgba(0,0,0,0.06)',
+  glassHighlight: 'rgba(255,255,255,0.9)',
 
   // Brand
-  tint: Blue,
-  tabIconDefault: '#636366',
-  tabIconSelected: Blue,
-  separator: 'rgba(255,255,255,0.08)',
+  tint: Purple,
+  tabIconDefault: '#9CA3AF',
+  tabIconSelected: Purple,
+  separator: '#E5E7EB',
 
-  // Cards (legacy compat)
-  cardBackground: GlassTiers.base.background,
-  cardShadow: 'rgba(0,0,0,0.6)',
+  // Cards
+  cardBackground: '#FFFFFF',
+  cardShadow: 'rgba(0,0,0,0.06)',
 
   // Semantic shorthands
   success: Green,
-  warning: Orange,
+  warning: Amber,
   error: Red,
 };
 
+// Force light-only (both modes = light)
 export default {
-  light: scheme,
-  dark: scheme,
+  light: lightScheme,
+  dark: lightScheme,
 };
 
 // ─── Typography Scale (Apple HIG) ────────────────────────────────────────────
@@ -175,7 +200,6 @@ export const Typography = {
     letterSpacing: 0.07,
     lineHeight: 13,
   },
-  // Number display variants
   mono: {
     fontSize: 17,
     fontWeight: '500' as const,
@@ -192,7 +216,7 @@ export const Typography = {
   },
 };
 
-// ─── Spacing Scale (8pt grid) ─────────────────────────────────────────────────
+// ─── Spacing Scale (8pt grid) ──────────────────────────────────────────────
 export const Spacing = {
   xs: 4,
   sm: 8,
@@ -202,43 +226,43 @@ export const Spacing = {
   xxl: 48,
 };
 
-// ─── Border Radius (locked system — 16 / 20 / 28 only) ───────────────────────
+// ─── Border Radius ─────────────────────────────────────────────────────────
 export const BorderRadius = {
-  sm: 8,   // Internal elements only (chips, badges)
-  md: 16,  // Standard cards
-  lg: 20,  // Elevated cards
-  xl: 28,  // Hero cards / modals
+  sm: 8,
+  md: 14,
+  lg: 20,
+  xl: 28,
   full: 9999,
 };
 
-// ─── Shadows ──────────────────────────────────────────────────────────────────
+// ─── Shadows (soft, diffuse — light fintech style) ────────────────────────
 export const Shadows = {
   sm: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
     elevation: 2,
   },
   md: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 4,
   },
   lg: {
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.35,
-    shadowRadius: 24,
-    elevation: 12,
+    shadowOpacity: 0.10,
+    shadowRadius: 28,
+    elevation: 8,
   },
   glow: (color: string) => ({
     shadowColor: color,
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 6,
   }),
 };

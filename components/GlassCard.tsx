@@ -1,18 +1,22 @@
+/**
+ * SoftCard — replaces GlassCard for the light fintech theme.
+ * Same API, same import path. No glass blur — uses soft diffuse shadows.
+ */
 import React, { useCallback } from 'react';
 import {
     View,
     StyleSheet,
     StyleProp,
     ViewStyle,
-    Platform,
     Pressable,
+    Platform,
 } from 'react-native';
 import Animated, {
     useAnimatedStyle,
     useSharedValue,
     withSpring,
 } from 'react-native-reanimated';
-import { GlassTiers, Shadows, BorderRadius } from '@/constants/Colors';
+import { CardTiers, Shadows, BorderRadius } from '@/constants/Colors';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Elevation = 'base' | 'elevated' | 'overlay';
@@ -40,7 +44,7 @@ export function GlassCard({
     onPress,
     radius = BorderRadius.lg,
 }: GlassCardProps) {
-    const tier = GlassTiers[elevation];
+    const tier = CardTiers[elevation];
     const scale = useSharedValue(1);
 
     const animatedStyle = useAnimatedStyle(() => ({
@@ -49,46 +53,29 @@ export function GlassCard({
 
     const handlePressIn = useCallback(() => {
         if (pressable || onPress) {
-            scale.value = withSpring(0.972, { damping: 18, stiffness: 300 });
+            scale.value = withSpring(0.974, { damping: 20, stiffness: 320 });
         }
     }, [pressable, onPress, scale]);
 
     const handlePressOut = useCallback(() => {
         if (pressable || onPress) {
-            scale.value = withSpring(1, { damping: 18, stiffness: 300 });
+            scale.value = withSpring(1, { damping: 20, stiffness: 320 });
         }
     }, [pressable, onPress, scale]);
 
-    const glowStyle = glowColor ? Shadows.glow(glowColor) : Shadows.md;
+    const shadowStyle = glowColor ? Shadows.glow(glowColor) : tier.shadow;
 
     const baseStyle: StyleProp<ViewStyle>[] = [
         styles.card,
         {
             backgroundColor: tier.background,
-            borderColor: tier.border,
             borderRadius: radius,
         },
-        glowStyle,
+        shadowStyle,
         style ?? {},
     ];
 
-    const content = (
-        <>
-            {/* Inner top-edge highlight — the "glass catches light" effect */}
-            <View
-                style={[
-                    styles.highlight,
-                    {
-                        backgroundColor: tier.highlight,
-                        borderTopLeftRadius: radius,
-                        borderTopRightRadius: radius,
-                    },
-                ]}
-                pointerEvents="none"
-            />
-            {children}
-        </>
-    );
+    const content = <>{children}</>;
 
     if (pressable || onPress) {
         return (
@@ -100,32 +87,20 @@ export function GlassCard({
         );
     }
 
-    return (
-        <View style={baseStyle}>
-            {content}
-        </View>
-    );
+    return <View style={baseStyle}>{content}</View>;
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
     card: {
-        borderWidth: 1,
-        padding: 20,
+        backgroundColor: '#FFFFFF',
+        padding: 18,
         overflow: 'hidden',
         ...Platform.select({
             web: {
-                backdropFilter: 'blur(24px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                // Web: subtle box-shadow instead of native shadow props
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)',
             } as any,
         }),
-    },
-    highlight: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        height: 44,
-        pointerEvents: 'none',
     },
 });

@@ -65,7 +65,7 @@ export function CategoryBudgetCard({ budget, delay = 0 }: CategoryBudgetCardProp
                 </View>
 
                 {/* Progress Track */}
-                <View style={[styles.track, { backgroundColor: 'rgba(255,255,255,0.08)' }]}>
+                <View style={[styles.track, { backgroundColor: '#F2F3F7' }]}>
                     <Animated.View
                         style={[styles.fill, { backgroundColor: barColor }, animatedBar]}
                     />

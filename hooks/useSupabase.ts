@@ -2,7 +2,7 @@
  * Custom Hooks for Supabase Database Operations
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Database } from '@/lib/database.types';
 
@@ -110,28 +110,30 @@ export function useSavingsGoals(userId: string | undefined) {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
 
+    // Hoisted outside useEffect so it can be returned for manual refresh
+    const fetchGoals = useCallback(async () => {
+        if (!userId) return;
+        try {
+            const { data, error } = await supabase
+                .from('savings_goals')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+            setGoals(data || []);
+        } catch (err) {
+            setError(err as Error);
+        } finally {
+            setLoading(false);
+        }
+    }, [userId]);
+
     useEffect(() => {
         if (!userId) {
             setLoading(false);
             return;
         }
-
-        const fetchGoals = async () => {
-            try {
-                const { data, error } = await supabase
-                    .from('savings_goals')
-                    .select('*')
-                    .eq('user_id', userId)
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-                setGoals(data || []);
-            } catch (err) {
-                setError(err as Error);
-            } finally {
-                setLoading(false);
-            }
-        };
 
         fetchGoals();
 
@@ -155,10 +157,11 @@ export function useSavingsGoals(userId: string | undefined) {
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [userId]);
+    }, [userId, fetchGoals]);
 
-    return { goals, loading, error };
+    return { goals, loading, error, refresh: fetchGoals };
 }
+
 
 // Hook to get monthly summary
 export function useMonthlySummary(userId: string | undefined, month?: Date) {

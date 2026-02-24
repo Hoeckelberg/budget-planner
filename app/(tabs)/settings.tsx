@@ -4,6 +4,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import Colors, { Typography, Spacing, BorderRadius } from '@/constants/Colors';
 import { useColorScheme } from '@/components/useColorScheme';
 import { GlassCard } from '@/components/GlassCard';
+import { router } from 'expo-router';
 
 const COFFEE_URL = 'https://buymeacoffee.com/budgetplanner';
 
@@ -104,8 +105,14 @@ export default function SettingsScreen() {
                     <GlassCard style={styles.settingsGroup}>
                         <SettingsItem icon="💰" title="Währung" subtitle="Euro (€)" />
                         <SettingsItem icon="📅" title="Monatsstart" subtitle="1. des Monats" />
-                        <SettingsItem icon="🌙" title="Erscheinungsbild" subtitle="Dunkel" />
+                        <SettingsItem icon="🌙" title="Erscheinungsbild" subtitle="Hell" />
                         <SettingsItem icon="🏷️" title="Kategorien verwalten" />
+                        <SettingsItem
+                            icon="🎯"
+                            title="Budget-Limits"
+                            subtitle="Monatliche Limite pro Kategorie"
+                            onPress={() => router.push('/(tabs)/budgets')}
+                        />
                     </GlassCard>
                 </Animated.View>
 
